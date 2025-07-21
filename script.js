@@ -107,3 +107,71 @@ matches.forEach(m => {
 });
 return preps;
 }
+
+// --- 追加: 各種テンプレート文リスト ---
+const topicSentences = [
+  'I want to describe a place called ___.',
+  'My favorite ___ is ___.',
+  'There is a special ___ that I often visit.',
+  'Today, I will describe ___.',
+  'One thing I really like is ___.',
+  'I often go to ___ because it is ___.',
+  'I always enjoy spending time at ___.',
+  'The object I’m describing is something I use every day.',
+  '___ is very meaningful to me.',
+  'I have many memories of ___, so I want to describe it.'
+];
+const sensoryDetails = [
+  'It looks ___ and ___.',
+  'You can hear ___, especially when ___.',
+  'The colors are ___, which makes it look ___.',
+  'It smells like ___, and that reminds me of ___.',
+  'It feels ___ when I touch it.',
+  'You can see ___ all around.',
+  'The sounds around it are usually ___.',
+  'The texture is ___, soft and ___.',
+  'The air smells like ___ on most days.',
+  'It tastes like ___, which makes me feel ___.'
+];
+const spatialDetails = [
+  'It is located near ___.',
+  'Around it, there are ___ and ___.',
+  'Inside, you can find ___.',
+  'On the left side, you can see ___.',
+  'Next to it, there is ___.',
+  'People often come here to ___.',
+  'The area is always ___ and ___.',
+  'The place is usually quiet except when ___.',
+  'From this spot, you can see ___ in the distance.',
+  'There are many things placed around it, such as ___.'
+];
+const concludingSentences = [
+  'I like this place/object because it makes me feel ___.',
+  'It always makes me happy when I see/touch/smell it.',
+  'This place is special to me because ___.',
+  'It helps me relax whenever I’m there.',
+  'I enjoy spending time here more than anywhere else.',
+  'It reminds me of ___, which is why I love it.',
+  'I feel calm and peaceful when I am near it.',
+  'It brings back memories of ___.',
+  'I often go there when I want to ___.',
+];
+
+function showTopicSentence() {
+  showRandomTemplate(topicSentences, 'Topic Sentence');
+}
+function showSensoryDetails() {
+  showRandomTemplate(sensoryDetails, 'Sensory Details');
+}
+function showSpatialDetails() {
+  showRandomTemplate(spatialDetails, 'Spatial / Additional Details');
+}
+function showConcludingSentence() {
+  showRandomTemplate(concludingSentences, 'Concluding Sentence');
+}
+function showRandomTemplate(list, label) {
+  // Past tense converterのoutputには一切触れず、templateOutputのみを使う
+  const templateOutput = document.getElementById('templateOutput');
+  const idx = Math.floor(Math.random() * list.length);
+  templateOutput.innerText = `${label}:\n${list[idx]}`;
+}

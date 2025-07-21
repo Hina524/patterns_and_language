@@ -29,11 +29,20 @@
                 <br>
                 <input type="text" id="textInput" class="w3-input w3-border" placeholder="Enter your text here"
                     aria-label="Text input">
-                <button class="w3-button-orange w3-margin-top" onclick="convertToPast()">Process</i>
-                </button>
+                <button class="w3-button-orange w3-margin-top" onclick="convertToPast()">Process</button>
                 <div id="loading" class="loading-spinner w3-margin-left"></div>
                 <div id="output" class="w3-container w3-theme-l1 w3-padding w3-margin-top"></div>
+
+                <h3 class="w3-text-orange" style="margin-top:32px;">Template Sentence Generator</h3>
+                <p>Click a button below to generate some skeleton sentences or sentence stems for your writing.</p>
+
+                <button class="w3-button-orange w3-margin-top" onclick="showTopicSentence()">Topic Sentence</button>
+                <button class="w3-button-orange w3-margin-top" onclick="showSensoryDetails()">Sensory Details</button>
+                <button class="w3-button-orange w3-margin-top" onclick="showSpatialDetails()">Spatial / Additional Details</button>
+                <button class="w3-button-orange w3-margin-top" onclick="showConcludingSentence()">Concluding Sentence</button>
                 <br>
+                <!-- Template Sentence Generatorの出力欄を追加 -->
+                <div id="templateOutput" class="w3-container w3-theme-l1 w3-padding w3-margin-top"></div>
             </div>
         </div>
     </div>
