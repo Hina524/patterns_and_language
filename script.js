@@ -19,23 +19,76 @@ function openTab(evt, tabName) {
     evt.currentTarget.classList.add("active");
 }
 
+// テキスト入力エリアの動的追加機能
+let textInputCounter = 2;
+
+function addTextInput() {
+    textInputCounter++;
+    const container = document.getElementById('textInputContainer');
+    
+    const newInputGroup = document.createElement('div');
+    newInputGroup.className = 'text-input-group';
+    newInputGroup.innerHTML = `
+        <div class="text-input-header">
+            <span class="text-label">Text ${textInputCounter}</span>
+            <button class="remove-text-btn w3-button w3-small w3-text-red" onclick="removeTextInput(this)" title="削除">
+                <i class="em em-x"></i>
+            </button>
+        </div>
+        <textarea class="pattern-text-input w3-input w3-border w3-margin-bottom" rows="3" 
+            placeholder="Enter text ${textInputCounter} here..."
+            aria-label="Text input ${textInputCounter}"></textarea>
+    `;
+    
+    container.appendChild(newInputGroup);
+}
+
+function removeTextInput(button) {
+    const inputGroups = document.querySelectorAll('.text-input-group');
+    
+    // 最低1つは残す
+    if (inputGroups.length <= 1) {
+        return;
+    }
+    
+    const inputGroup = button.closest('.text-input-group');
+    inputGroup.remove();
+    
+    // ラベルを更新
+    updateTextLabels();
+}
+
+function updateTextLabels() {
+    const inputGroups = document.querySelectorAll('.text-input-group');
+    inputGroups.forEach((group, index) => {
+        const label = group.querySelector('.text-label');
+        label.textContent = `Text ${index + 1}`;
+        
+        const textarea = group.querySelector('textarea');
+        textarea.setAttribute('aria-label', `Text input ${index + 1}`);
+        textarea.setAttribute('placeholder', `Enter text ${index + 1} here...`);
+    });
+}
+
 // Pattern Finder機能
 function findPatterns() {
-    let input = document.getElementById('patternInput').value;
     let level = parseInt(document.getElementById('levelSelect').value);
     let output = document.getElementById('patternOutput');
     let loading = document.getElementById('patternLoading');
 
-    if (input.trim() === "") {
-        output.innerText = "Please enter text to analyze.";
+    // 全てのテキストエリアから値を取得
+    const textareas = document.querySelectorAll('.pattern-text-input');
+    let texts = Array.from(textareas)
+        .map(textarea => textarea.value.trim())
+        .filter(text => text.length > 0);
+
+    if (texts.length === 0) {
+        output.innerText = "Please enter at least one text to analyze.";
         return;
     }
-
-    // テキストを"---"で分割
-    let texts = input.split('---').map(t => t.trim()).filter(t => t.length > 0);
     
     if (texts.length < 2) {
-        output.innerText = "Please enter at least 2 texts separated by '---' to find common patterns.";
+        output.innerText = "Please enter at least 2 texts to find common patterns.";
         return;
     }
 

@@ -85,13 +85,37 @@
                         <!-- Pattern Finder タブ -->
                         <div id="patternTab" class="tab-content">
                             <h3 class="w3-text-orange">Pattern Finder <i class="em em-mag"></i></h3>
-                            <p class="instruction w3-text-white">Enter multiple English texts (separated by "---") and select analysis level to find common patterns.<br>・Level 1: Simple tokens<br>・Level 2: Tokens + POS tags<br>・Level 3: Tokens + phrase types<br>・Level 4: Tokens + POS + phrase types</p>
+                            <p class="instruction w3-text-white">Enter multiple English texts to find common patterns between them.<br>・Level 1: Simple tokens<br>・Level 2: Tokens + POS tags<br>・Level 3: Tokens + phrase types<br>・Level 4: Tokens + POS + phrase types</p>
                             
-                            <label for="patternInput" class="w3-text-white">Input (separate multiple texts with "---"):</label>
-                            <br>
-                            <textarea id="patternInput" class="w3-input w3-border w3-margin-bottom" rows="8" 
-                                placeholder="Text 1: I like to read books in the library.&#10;---&#10;Text 2: She likes to study books at the library.&#10;---&#10;Text 3: We prefer to read novels in the library."
-                                aria-label="Pattern text input"></textarea>
+                            <label class="w3-text-white">Input Texts:</label>
+                            <div id="textInputContainer">
+                                <div class="text-input-group">
+                                    <div class="text-input-header">
+                                        <span class="text-label">Text 1</span>
+                                        <button class="remove-text-btn w3-button w3-small w3-text-red" onclick="removeTextInput(this)" title="削除">
+                                            <i class="em em-x"></i>
+                                        </button>
+                                    </div>
+                                    <textarea class="pattern-text-input w3-input w3-border w3-margin-bottom" rows="3" 
+                                        placeholder="Enter your first text here (e.g., I like to read books in the library.)"
+                                        aria-label="Text input 1"></textarea>
+                                </div>
+                                <div class="text-input-group">
+                                    <div class="text-input-header">
+                                        <span class="text-label">Text 2</span>
+                                        <button class="remove-text-btn w3-button w3-small w3-text-red" onclick="removeTextInput(this)" title="削除">
+                                            <i class="em em-x"></i>
+                                        </button>
+                                    </div>
+                                    <textarea class="pattern-text-input w3-input w3-border w3-margin-bottom" rows="3" 
+                                        placeholder="Enter text 2 here (e.g., She likes to study books at the library.)"
+                                        aria-label="Text input 2"></textarea>
+                                </div>
+                            </div>
+                            
+                            <button id="addTextBtn" class="w3-button w3-border w3-border-orange w3-text-orange w3-margin-bottom" onclick="addTextInput()">
+                                <i class="em em-heavy_plus_sign"></i> Add Text
+                            </button>
                             
                             <label for="levelSelect" class="w3-text-white">Analysis Level:</label>
                             <br>
