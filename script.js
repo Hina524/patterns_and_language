@@ -1,3 +1,241 @@
+// タブ切り替え機能
+function openTab(evt, tabName) {
+    var i, tabcontent, tablinks;
+    
+    // すべてのタブコンテンツを非表示にする
+    tabcontent = document.getElementsByClassName("tab-content");
+    for (i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].classList.remove("active");
+    }
+    
+    // すべてのタブボタンからactiveクラスを削除
+    tablinks = document.getElementsByClassName("tab-button");
+    for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].classList.remove("active");
+    }
+    
+    // 選択されたタブを表示し、ボタンにactiveクラスを追加
+    document.getElementById(tabName).classList.add("active");
+    evt.currentTarget.classList.add("active");
+}
+
+// Pattern Finder機能
+function findPatterns() {
+    let input = document.getElementById('patternInput').value;
+    let level = parseInt(document.getElementById('levelSelect').value);
+    let output = document.getElementById('patternOutput');
+    let loading = document.getElementById('patternLoading');
+
+    if (input.trim() === "") {
+        output.innerText = "Please enter text to analyze.";
+        return;
+    }
+
+    // テキストを"---"で分割
+    let texts = input.split('---').map(t => t.trim()).filter(t => t.length > 0);
+    
+    if (texts.length < 2) {
+        output.innerText = "Please enter at least 2 texts separated by '---' to find common patterns.";
+        return;
+    }
+
+    loading.style.display = "inline-block";
+    
+    setTimeout(() => {
+        try {
+            // 各テキストをトークン化
+            let tokenSequences = [];
+            for (let i = 0; i < texts.length; i++) {
+                let tokens = tokenizeText(texts[i], level);
+                if (tokens && tokens.length > 0) {
+                    tokenSequences.push({
+                        index: i + 1,
+                        tokens: tokens
+                    });
+                }
+            }
+
+            if (tokenSequences.length < 2) {
+                output.innerText = "Need at least 2 valid texts to find patterns.";
+                loading.style.display = "none";
+                return;
+            }
+
+            // 共通パターンを検索
+            let patterns = findCommonPatterns(tokenSequences, level);
+            
+            // 結果を表示
+            displayPatternResults(patterns, tokenSequences.length, level, output);
+            
+        } catch (error) {
+            output.innerText = "Error processing texts: " + error.message;
+        }
+        
+        loading.style.display = "none";
+    }, 500);
+}
+
+function tokenizeText(text, level) {
+    let doc = nlp(text);
+    let tokens = [];
+    
+    doc.terms().forEach(term => {
+        let token = term.text();
+        if (token.trim()) {
+            switch(level) {
+                case 1:
+                    // Simple tokens
+                    tokens.push(token);
+                    break;
+                case 2:
+                    // Token + POS
+                    let pos = term.tags().join('|') || 'O';
+                    tokens.push([token, pos]);
+                    break;
+                case 3:
+                    // Token + phrase type
+                    let phraseType = getPhraseType(term);
+                    tokens.push([token, phraseType]);
+                    break;
+                case 4:
+                    // Token + POS + phrase type
+                    let pos4 = term.tags().join('|') || 'O';
+                    let phraseType4 = getPhraseType(term);
+                    tokens.push([token, pos4, phraseType4]);
+                    break;
+            }
+        }
+    });
+    
+    return tokens;
+}
+
+function getPhraseType(term) {
+    // Simple phrase type detection
+    if (term.has('#Noun')) return 'NP';
+    if (term.has('#Verb')) return 'VP';
+    if (term.has('#Preposition')) return 'PP';
+    if (term.has('#Adjective')) return 'ADJP';
+    if (term.has('#Adverb')) return 'ADVP';
+    return 'O';
+}
+
+function findCommonPatterns(tokenSequences, level) {
+    let patterns = new Map();
+    
+    // 最短のシーケンスを基準にする
+    let baseSeq = tokenSequences.reduce((shortest, current) => 
+        current.tokens.length < shortest.tokens.length ? current : shortest
+    );
+    
+    // すべての可能な部分列をチェック
+    for (let length = Math.min(baseSeq.tokens.length, 10); length > 0; length--) {
+        for (let start = 0; start <= baseSeq.tokens.length - length; start++) {
+            let pattern = baseSeq.tokens.slice(start, start + length);
+            let patternKey = JSON.stringify(pattern);
+            
+            // このパターンが他のシーケンスにも存在するかチェック
+            let foundInTexts = new Set();
+            let totalCount = 0;
+            
+            for (let seq of tokenSequences) {
+                let count = countPatternInSequence(pattern, seq.tokens, level);
+                if (count > 0) {
+                    foundInTexts.add(seq.index);
+                    totalCount += count;
+                }
+            }
+            
+            // 少なくとも2つのテキストに存在する場合のみ保存
+            if (foundInTexts.size >= 2) {
+                if (!patterns.has(patternKey) || patterns.get(patternKey).count < totalCount) {
+                    patterns.set(patternKey, {
+                        pattern: pattern,
+                        count: totalCount,
+                        texts: foundInTexts.size,
+                        length: length
+                    });
+                }
+            }
+        }
+    }
+    
+    // 結果をソート（長さ、出現回数、テキスト数順）
+    return Array.from(patterns.values()).sort((a, b) => {
+        if (a.length !== b.length) return b.length - a.length;
+        if (a.count !== b.count) return b.count - a.count;
+        return b.texts - a.texts;
+    });
+}
+
+function countPatternInSequence(pattern, sequence, level) {
+    let count = 0;
+    let patternLen = pattern.length;
+    let seqLen = sequence.length;
+    
+    for (let i = 0; i <= seqLen - patternLen; i++) {
+        let match = true;
+        for (let j = 0; j < patternLen; j++) {
+            if (!tokensEqual(pattern[j], sequence[i + j], level)) {
+                match = false;
+                break;
+            }
+        }
+        if (match) {
+            count++;
+        }
+    }
+    
+    return count;
+}
+
+function tokensEqual(token1, token2, level) {
+    if (level === 1) {
+        return token1 === token2;
+    } else {
+        return JSON.stringify(token1) === JSON.stringify(token2);
+    }
+}
+
+function formatPattern(pattern, level) {
+    switch(level) {
+        case 1:
+            return pattern.join(' ');
+        case 2:
+            return pattern.map(([token, pos]) => `${token}(${pos})`).join(' ');
+        case 3:
+            return pattern.map(([token, phrase]) => `${token}[${phrase}]`).join(' ');
+        case 4:
+            return pattern.map(([token, pos, phrase]) => `${token}(${pos})[${phrase}]`).join(' ');
+    }
+}
+
+function displayPatternResults(patterns, numTexts, level, output) {
+    if (patterns.length === 0) {
+        output.innerText = "No common patterns found.";
+        return;
+    }
+    
+    let result = `Found ${patterns.length} common patterns:\n\n`;
+    
+    // 上位20個まで表示
+    let maxDisplay = Math.min(20, patterns.length);
+    for (let i = 0; i < maxDisplay; i++) {
+        let p = patterns[i];
+        let formatted = formatPattern(p.pattern, level);
+        result += `${i + 1}. Pattern: "${formatted}"\n`;
+        result += `   Length: ${p.length} tokens\n`;
+        result += `   Total occurrences: ${p.count}\n`;
+        result += `   Found in ${p.texts} text(s)\n\n`;
+    }
+    
+    if (patterns.length > maxDisplay) {
+        result += `... and ${patterns.length - maxDisplay} more patterns`;
+    }
+    
+    output.innerText = result;
+}
+
 function convertToPast() {
     let text = document.getElementById('textInput').value;
     let output = document.getElementById('output');

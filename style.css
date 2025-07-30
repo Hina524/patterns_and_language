@@ -1,3 +1,88 @@
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background-color: #000;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    min-height: 100vh;
+}
+
+.w3-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.w3-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+/* タブナビゲーションのスタイル */
+.tab-navigation {
+    display: flex;
+    border-bottom: 1px solid #555;
+    margin-bottom: 24px;
+    background-color: transparent;
+}
+
+.tab-button {
+    background-color: transparent;
+    border: none;
+    color: #ccc;
+    cursor: pointer;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border-bottom: 2px solid transparent;
+    position: relative;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tab-button:hover {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+.tab-button.active {
+    color: orange;
+    border-bottom-color: orange;
+    background-color: rgba(255, 165, 0, 0.1);
+}
+
+.tab-button i {
+    margin-right: 8px;
+}
+
+/* タブコンテンツのスタイル */
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease-in;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .loading-spinner {
     display: none;
     border: 4px solid #f3f3f3;
@@ -21,4 +106,137 @@
 .w3-button-orange {
     background-color: orange;
     color: black;
+    transition: background-color 0.3s ease;
+}
+
+.w3-button-orange:hover {
+    background-color: #ff8c00;
+}
+
+/* 入力フィールドの改善 */
+.w3-input {
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 14px;
+}
+
+.w3-input:focus {
+    border-color: orange;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 165, 0, 0.2);
+}
+
+/* テキストエリアのスタイル */
+textarea.w3-input {
+    resize: vertical;
+    min-height: 120px;
+    font-family: monospace;
+    line-height: 1.4;
+}
+
+/* セレクトボックスのスタイル */
+.w3-select {
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.w3-select:focus {
+    border-color: orange;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 165, 0, 0.2);
+}
+
+/* option要素のスタイル */
+.w3-select option {
+    background-color: #333;
+    color: #fff;
+}
+
+/* レスポンシブなフォントサイズ */
+@media (max-width: 600px) {
+    h3 {
+        font-size: 1.5em;
+    }
+    
+    p {
+        font-size: 0.9em;
+    }
+    
+    .w3-button-orange {
+        font-size: 0.9em;
+        padding: 8px 16px;
+    }
+    
+    .w3-input, .w3-select {
+        font-size: 14px;
+    }
+    
+    .w3-container {
+        max-width: 100%;
+        padding: 0 8px;
+    }
+    
+    /* モバイルでのタブボタン調整 */
+    .tab-button {
+        padding: 10px 12px;
+        font-size: 11px;
+    }
+    
+    .tab-navigation {
+        margin-bottom: 16px;
+    }
+    
+    /* モバイルでのテキストエリア調整 */
+    textarea.w3-input {
+        min-height: 100px;
+    }
+}
+
+@media (min-width: 601px) and (max-width: 992px) {
+    .w3-container {
+        padding: 0 16px;
+        max-width: 900px;
+    }
+}
+
+@media (min-width: 993px) {
+    .w3-container {
+        padding: 0 24px;
+        max-width: 1200px;
+    }
+}
+
+/* 出力エリアのスタイル改善 */
+#output, #templateOutput, #patternOutput {
+    word-wrap: break-word;
+    white-space: pre-line;
+    background-color: #333;
+    border-radius: 4px;
+    font-family: monospace;
+    line-height: 1.4;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+/* カード要素の改善 */
+.w3-card-4 {
+    background-color: #222;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px 0 rgba(0,0,0,0.2), 0 4px 20px 0 rgba(0,0,0,0.19);
+}
+
+/* ラベルのスタイル改善 */
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+    color: #fff;
 }

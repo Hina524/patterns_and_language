@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Green task - Meso patterns on CodePen</title>
+    <link rel="stylesheet" href="./style.css">
+
+</head>
+
+<body class="w3-black">
+    <!-- partial:index.partial.html -->
+    <html>
+
+    <head>
+        <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+        <link rel="stylesheet" href="https://www.w3schools.com/lib/w3-theme-black.css">
+        <link href="https://afeld.github.io/emoji-css/emoji.css" rel="stylesheet">
+        <link rel="stylesheet" href="iCALL.css">
+        <script src="https://unpkg.com/compromise"></script>
+        <script src="iCALL.js"></script>
+    </head>
+
+    <body class="w3-black w3-text-white">
+        <div class="w3-container w3-black">
+            <div class="w3-row w3-padding-16">
+                <div class="w3-col l2 m1 s0">&nbsp;</div>
+                <div class="w3-col l8 m10 s12 w3-container">
+                    <div class="w3-card-4 w3-theme-l1 w3-padding">
+                        <!-- タブナビゲーション -->
+                        <div class="tab-navigation">
+                            <button class="tab-button active" onclick="openTab(event, 'pastTenseTab')">
+                                <i class="em em-computer"></i> Past Tense Converter
+                            </button>
+                            <button class="tab-button" onclick="openTab(event, 'templateTab')">
+                                <i class="em em-pencil2"></i> Template Generator
+                            </button>
+                            <button class="tab-button" onclick="openTab(event, 'patternTab')">
+                                <i class="em em-mag"></i> Pattern Finder
+                            </button>
+                        </div>
+
+                        <!-- Past Tense Converter タブ -->
+                        <div id="pastTenseTab" class="tab-content active">
+                            <h3 class="w3-text-orange">Past tense converter <i class="em em-computer"></i></h3>
+                            <p class="instruction w3-text-white">Enter an English sentence and click "Process".<br>・The verb(s) will be
+                                converted to past tense.<br>・The sentence type (simple, compound, or complex) will be
+                                identified.<br>・Prepositional phrases will be identified.</p>
+                            <label for="textInput" class="w3-text-white">Input:</label>
+                            <br>
+                            <input type="text" id="textInput" class="w3-input w3-border w3-margin-bottom" placeholder="Enter your text here"
+                                aria-label="Text input">
+                            <button class="w3-button-orange w3-margin-top w3-margin-right" onclick="convertToPast()">Process</button>
+                            <div id="loading" class="loading-spinner w3-margin-left"></div>
+                            <div id="output" class="w3-container w3-theme-l1 w3-padding w3-margin-top w3-text-white"></div>
+                        </div>
+
+                        <!-- Template Sentence Generator タブ -->
+                        <div id="templateTab" class="tab-content">
+                            <h3 class="w3-text-orange">Template Sentence Generator <i class="em em-pencil2"></i></h3>
+                            <p class="w3-text-white">Click a button below to generate some skeleton sentences or sentence stems for your writing.</p>
+
+                            <div class="w3-row-padding w3-margin-top">
+                                <div class="w3-col l6 m6 s12">
+                                    <button class="w3-button-orange w3-block w3-margin-bottom" onclick="showTopicSentence()">Topic Sentence</button>
+                                </div>
+                                <div class="w3-col l6 m6 s12">
+                                    <button class="w3-button-orange w3-block w3-margin-bottom" onclick="showSensoryDetails()">Sensory Details</button>
+                                </div>
+                            </div>
+                            <div class="w3-row-padding">
+                                <div class="w3-col l6 m6 s12">
+                                    <button class="w3-button-orange w3-block w3-margin-bottom" onclick="showSpatialDetails()">Spatial / Additional Details</button>
+                                </div>
+                                <div class="w3-col l6 m6 s12">
+                                    <button class="w3-button-orange w3-block w3-margin-bottom" onclick="showConcludingSentence()">Concluding Sentence</button>
+                                </div>
+                            </div>
+                            
+                            <!-- Template Sentence Generatorの出力欄 -->
+                            <div id="templateOutput" class="w3-container w3-theme-l1 w3-padding w3-margin-top w3-text-white"></div>
+                        </div>
+
+                        <!-- Pattern Finder タブ -->
+                        <div id="patternTab" class="tab-content">
+                            <h3 class="w3-text-orange">Pattern Finder <i class="em em-mag"></i></h3>
+                            <p class="instruction w3-text-white">Enter multiple English texts (separated by "---") and select analysis level to find common patterns.<br>・Level 1: Simple tokens<br>・Level 2: Tokens + POS tags<br>・Level 3: Tokens + phrase types<br>・Level 4: Tokens + POS + phrase types</p>
+                            
+                            <label for="patternInput" class="w3-text-white">Input (separate multiple texts with "---"):</label>
+                            <br>
+                            <textarea id="patternInput" class="w3-input w3-border w3-margin-bottom" rows="8" 
+                                placeholder="Text 1: I like to read books in the library.&#10;---&#10;Text 2: She likes to study books at the library.&#10;---&#10;Text 3: We prefer to read novels in the library."
+                                aria-label="Pattern text input"></textarea>
+                            
+                            <label for="levelSelect" class="w3-text-white">Analysis Level:</label>
+                            <br>
+                            <select id="levelSelect" class="w3-select w3-border w3-margin-bottom">
+                                <option value="1">Level 1: Simple tokens</option>
+                                <option value="2">Level 2: Tokens + POS tags</option>
+                                <option value="3">Level 3: Tokens + phrase types</option>
+                                <option value="4">Level 4: Tokens + POS + phrase types</option>
+                            </select>
+                            
+                            <button class="w3-button-orange w3-margin-top w3-margin-right" onclick="findPatterns()">Process</button>
+                            <div id="patternLoading" class="loading-spinner w3-margin-left"></div>
+                            <div id="patternOutput" class="w3-container w3-theme-l1 w3-padding w3-margin-top w3-text-white"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="w3-col l2 m1 s0">&nbsp;</div>
+            </div>
+        </div>
+    </body>
+
+    </html>
+    <!-- partial -->
+    <script src="./script.js"></script>
+
+</body>
+
+</html>
