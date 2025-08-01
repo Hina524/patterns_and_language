@@ -17,16 +17,13 @@
         <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
         <link rel="stylesheet" href="https://www.w3schools.com/lib/w3-theme-black.css">
         <link href="https://afeld.github.io/emoji-css/emoji.css" rel="stylesheet">
-        <link rel="stylesheet" href="iCALL.css">
         <script src="https://unpkg.com/compromise"></script>
-        <script src="iCALL.js"></script>
     </head>
 
     <body class="w3-black w3-text-white">
         <div class="w3-container w3-black">
-            <div class="w3-row w3-padding-16">
-                <div class="w3-col l2 m1 s0">&nbsp;</div>
-                <div class="w3-col l8 m10 s12 w3-container">
+            <div class="w3-row">
+                <div class="content-wrapper">
                     <div class="w3-card-4 w3-theme-l1 w3-padding">
                         <!-- タブナビゲーション -->
                         <div class="tab-navigation">
@@ -53,7 +50,11 @@
                                 aria-label="Text input">
                             <button class="w3-button-orange w3-margin-top w3-margin-right" onclick="convertToPast()">Process</button>
                             <div id="loading" class="loading-spinner w3-margin-left"></div>
-                            <div id="output" class="w3-container w3-theme-l1 w3-padding w3-margin-top w3-text-white"></div>
+                            
+                            <div id="outputSection" class="result-section w3-margin-top" style="display: none;">
+                                <h4 class="result-title w3-text-orange"><i class="em em-clipboard"></i> Result:</h4>
+                                <div id="output" class="result-content w3-container w3-theme-l1 w3-padding w3-text-white"></div>
+                            </div>
                         </div>
 
                         <!-- Template Sentence Generator タブ -->
@@ -79,43 +80,86 @@
                             </div>
                             
                             <!-- Template Sentence Generatorの出力欄 -->
-                            <div id="templateOutput" class="w3-container w3-theme-l1 w3-padding w3-margin-top w3-text-white"></div>
+                            <div id="templateOutputSection" class="result-section w3-margin-top" style="display: none;">
+                                <h4 class="result-title w3-text-orange"><i class="em em-bulb"></i> Result:</h4>
+                                <div id="templateOutput" class="result-content w3-container w3-theme-l1 w3-padding w3-text-white"></div>
+                            </div>
                         </div>
 
                         <!-- Pattern Finder タブ -->
                         <div id="patternTab" class="tab-content">
                             <h3 class="w3-text-orange">Pattern Finder <i class="em em-mag"></i></h3>
-                            <p class="instruction w3-text-white">Enter multiple English texts to find common patterns between them.<br>・Level 1: Simple tokens<br>・Level 2: Tokens + POS tags<br>・Level 3: Tokens + phrase types<br>・Level 4: Tokens + POS + phrase types</p>
+                            <p class="instruction w3-text-white">Provide multiple English texts (by typing or uploading files) to find common patterns between them.<br>・Level 1: Simple tokens<br>・Level 2: Tokens + POS tags<br>・Level 3: Tokens + phrase types<br>・Level 4: Tokens + POS + phrase types</p>
                             
-                            <label class="w3-text-white">Input Texts:</label>
-                            <div id="textInputContainer">
-                                <div class="text-input-group">
-                                    <div class="text-input-header">
-                                        <span class="text-label">Text 1</span>
-                                        <button class="remove-text-btn w3-button w3-small w3-text-red" onclick="removeTextInput(this)" title="削除">
-                                            <i class="em em-x"></i>
+                            <!-- 入力方法選択 -->
+                            <div class="input-method-selection w3-margin-bottom">
+                                <label class="w3-text-white">Choose Input Method:</label>
+                                <div class="w3-row-padding w3-margin-top">
+                                    <div class="w3-col l6 m6 s12">
+                                        <button id="textInputMethodBtn" class="input-method-btn active w3-button w3-block w3-margin-bottom" onclick="selectInputMethod('text')">
+                                            <i class="em em-memo"></i> Manual Text Input
                                         </button>
                                     </div>
-                                    <textarea class="pattern-text-input w3-input w3-border w3-margin-bottom" rows="3" 
-                                        placeholder="Enter your first text here (e.g., I like to read books in the library.)"
-                                        aria-label="Text input 1"></textarea>
-                                </div>
-                                <div class="text-input-group">
-                                    <div class="text-input-header">
-                                        <span class="text-label">Text 2</span>
-                                        <button class="remove-text-btn w3-button w3-small w3-text-red" onclick="removeTextInput(this)" title="削除">
-                                            <i class="em em-x"></i>
+                                    <div class="w3-col l6 m6 s12">
+                                        <button id="fileInputMethodBtn" class="input-method-btn w3-button w3-block w3-margin-bottom" onclick="selectInputMethod('file')">
+                                            <i class="em em-page_with_curl"></i> Upload Text Files
                                         </button>
                                     </div>
-                                    <textarea class="pattern-text-input w3-input w3-border w3-margin-bottom" rows="3" 
-                                        placeholder="Enter text 2 here (e.g., She likes to study books at the library.)"
-                                        aria-label="Text input 2"></textarea>
                                 </div>
                             </div>
-                            
-                            <button id="addTextBtn" class="w3-button w3-border w3-border-orange w3-text-orange w3-margin-bottom" onclick="addTextInput()">
-                                <i class="em em-heavy_plus_sign"></i> Add Text
-                            </button>
+
+                            <!-- テキスト入力エリア -->
+                            <div id="textInputArea" class="input-area">
+                                <label class="w3-text-white">Input Texts:</label>
+                                <div id="textInputContainer">
+                                    <div class="text-input-group">
+                                        <div class="text-input-header">
+                                            <span class="text-label">Text 1</span>
+                                            <button class="remove-text-btn w3-button w3-small w3-text-red" onclick="removeTextInput(this)" title="削除">
+                                                <i class="em em-x"></i>
+                                            </button>
+                                        </div>
+                                        <textarea class="pattern-text-input w3-input w3-border w3-margin-bottom" rows="3" 
+                                            placeholder="Enter your first text here (e.g., I like to read books in the library.)"
+                                            aria-label="Text input 1"></textarea>
+                                    </div>
+                                    <div class="text-input-group">
+                                        <div class="text-input-header">
+                                            <span class="text-label">Text 2</span>
+                                            <button class="remove-text-btn w3-button w3-small w3-text-red" onclick="removeTextInput(this)" title="削除">
+                                                <i class="em em-x"></i>
+                                            </button>
+                                        </div>
+                                        <textarea class="pattern-text-input w3-input w3-border w3-margin-bottom" rows="3" 
+                                            placeholder="Enter text 2 here (e.g., She likes to study books at the library.)"
+                                            aria-label="Text input 2"></textarea>
+                                    </div>
+                                </div>
+                                
+                                <button id="addTextBtn" class="w3-button w3-border w3-border-orange w3-text-orange w3-margin-bottom" onclick="addTextInput()">
+                                    <i class="em em-heavy_plus_sign"></i> Add Text
+                                </button>
+                            </div>
+
+                            <!-- ファイルアップロードエリア -->
+                            <div id="fileInputArea" class="input-area" style="display: none;">
+                                <label class="w3-text-white">Upload Text Files:</label>
+                                <p class="w3-text-red w3-small">Note: Only .txt files are supported. Multiple files can be uploaded.</p>
+                                
+                                <div id="fileDropArea" class="file-drop-area w3-border w3-border-orange">
+                                    <div class="file-drop-content">
+                                        <i class="em em-inbox_tray" style="font-size: 2em;"></i>
+                                        <p class="w3-text-white">Drag & drop .txt files here</p>
+                                        <p class="w3-text-white">or</p>
+                                        <button id="selectFilesBtn" class="w3-button-orange" onclick="document.getElementById('fileInput').click()">
+                                            </i> Select Text Files
+                                        </button>
+                                        <input type="file" id="fileInput" accept=".txt" multiple style="display: none;" onchange="handleFileSelect(this.files)">
+                                    </div>
+                                </div>
+                                
+                                <div id="fileList" class="file-list w3-margin-top"></div>
+                            </div>
                             
                             <label for="levelSelect" class="w3-text-white">Analysis Level:</label>
                             <br>
@@ -128,11 +172,14 @@
                             
                             <button class="w3-button-orange w3-margin-top w3-margin-right" onclick="findPatterns()">Process</button>
                             <div id="patternLoading" class="loading-spinner w3-margin-left"></div>
-                            <div id="patternOutput" class="w3-container w3-theme-l1 w3-padding w3-margin-top w3-text-white"></div>
+                            
+                            <div id="patternOutputSection" class="result-section w3-margin-top" style="display: none;">
+                                <h4 class="result-title w3-text-orange"><i class="em em-mag_right"></i> Result:</h4>
+                                <div id="patternOutput" class="result-content w3-container w3-theme-l1 w3-padding w3-text-white"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="w3-col l2 m1 s0">&nbsp;</div>
             </div>
         </div>
     </body>

@@ -21,6 +21,154 @@ function openTab(evt, tabName) {
 
 // テキスト入力エリアの動的追加機能
 let textInputCounter = 2;
+let uploadedFiles = [];
+let currentInputMethod = 'text';
+
+// 入力方法選択機能
+function selectInputMethod(method) {
+    currentInputMethod = method;
+    
+    // ボタンのアクティブ状態を更新
+    document.getElementById('textInputMethodBtn').classList.toggle('active', method === 'text');
+    document.getElementById('fileInputMethodBtn').classList.toggle('active', method === 'file');
+    
+    // 対応するエリアを表示/非表示
+    document.getElementById('textInputArea').style.display = method === 'text' ? 'block' : 'none';
+    document.getElementById('fileInputArea').style.display = method === 'file' ? 'block' : 'none';
+    
+    // ファイルエリアが選択された場合、アップロードされたファイルをクリア
+    if (method === 'text') {
+        uploadedFiles = [];
+        document.getElementById('fileList').innerHTML = '';
+    }
+}
+
+// ファイルアップロード機能
+function handleFileSelect(files) {
+    const fileArray = Array.from(files);
+    
+    // .txtファイルのみフィルタリング
+    const txtFiles = fileArray.filter(file => {
+        const isValid = file.name.toLowerCase().endsWith('.txt');
+        if (!isValid) {
+            alert(`"${file.name}" is not a .txt file and will be skipped.`);
+        }
+        return isValid;
+    });
+    
+    if (txtFiles.length === 0) {
+        alert('No valid .txt files selected.');
+        return;
+    }
+    
+    // ファイルを読み込む
+    txtFiles.forEach(file => readFile(file));
+}
+
+function readFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const content = e.target.result;
+        
+        // ファイル情報を保存
+        const fileInfo = {
+            name: file.name,
+            content: content.trim(),
+            size: file.size
+        };
+        
+        uploadedFiles.push(fileInfo);
+        updateFileList();
+    };
+    
+    reader.readAsText(file, 'UTF-8');
+}
+
+function updateFileList() {
+    const fileListContainer = document.getElementById('fileList');
+    
+    if (uploadedFiles.length === 0) {
+        fileListContainer.innerHTML = '';
+        return;
+    }
+    
+    let html = '<h4 class="w3-text-orange">Uploaded Files:</h4>';
+    uploadedFiles.forEach((file, index) => {
+        const sizeKB = (file.size / 1024).toFixed(1);
+        const contentPreview = file.content.length > 100 ? 
+            file.content.substring(0, 100) + '...' : file.content;
+        
+        html += `
+            <div class="file-item w3-card w3-margin-bottom w3-padding">
+                <div class="file-header">
+                    <span class="file-name w3-text-orange">${file.name}</span>
+                    <span class="file-size w3-text-gray">(${sizeKB} KB)</span>
+                    <button class="remove-file-btn w3-button w3-small w3-text-red" onclick="removeFile(${index})" title="Remove">
+                        <i class="em em-x"></i>
+                    </button>
+                </div>
+                <div class="file-preview w3-text-gray w3-small w3-margin-top">${contentPreview}</div>
+            </div>
+        `;
+    });
+    
+    fileListContainer.innerHTML = html;
+}
+
+function removeFile(index) {
+    uploadedFiles.splice(index, 1);
+    updateFileList();
+}
+
+// ドラッグ&ドロップ機能
+function initDragAndDrop() {
+    const dropArea = document.getElementById('fileDropArea');
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, highlight, false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, unhighlight, false);
+    });
+    
+    function highlight(e) {
+        dropArea.classList.add('highlight');
+    }
+    
+    function unhighlight(e) {
+        dropArea.classList.remove('highlight');
+    }
+    
+    dropArea.addEventListener('drop', handleDrop, false);
+    
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        handleFileSelect(files);
+    }
+}
+
+// ページロード時にドラッグ&ドロップを初期化
+document.addEventListener('DOMContentLoaded', function() {
+    initDragAndDrop();
+    
+    // Pattern Finderタブのときのみファイルアップロード機能を有効にする
+    const patternTab = document.getElementById('patternTab');
+    if (patternTab) {
+        // 初期状態ではテキスト入力を選択
+        selectInputMethod('text');
+    }
+});
 
 function addTextInput() {
     textInputCounter++;
@@ -74,25 +222,50 @@ function updateTextLabels() {
 function findPatterns() {
     let level = parseInt(document.getElementById('levelSelect').value);
     let output = document.getElementById('patternOutput');
+    let outputSection = document.getElementById('patternOutputSection');
     let loading = document.getElementById('patternLoading');
 
-    // 全てのテキストエリアから値を取得
-    const textareas = document.querySelectorAll('.pattern-text-input');
-    let texts = Array.from(textareas)
-        .map(textarea => textarea.value.trim())
-        .filter(text => text.length > 0);
+    let texts = [];
+    let fileContents = '';
+
+    if (currentInputMethod === 'text') {
+        // 全てのテキストエリアから値を取得
+        const textareas = document.querySelectorAll('.pattern-text-input');
+        texts = Array.from(textareas)
+            .map(textarea => textarea.value.trim())
+            .filter(text => text.length > 0);
+    } else if (currentInputMethod === 'file') {
+        // アップロードされたファイルからテキストを取得
+        if (uploadedFiles.length === 0) {
+            output.innerText = "Please upload at least one .txt file to analyze.";
+            outputSection.style.display = "block";
+            return;
+        }
+        
+        texts = uploadedFiles.map(file => file.content).filter(content => content.length > 0);
+        
+        // ファイル内容を表示用に準備
+        fileContents = '\n--- Uploaded File Contents ---\n\n';
+        uploadedFiles.forEach((file, index) => {
+            fileContents += `File ${index + 1}: ${file.name}\n`;
+            fileContents += `Content: ${file.content}\n\n`;
+        });
+    }
 
     if (texts.length === 0) {
-        output.innerText = "Please enter at least one text to analyze.";
+        output.innerText = "Please provide at least one text to analyze.";
+        outputSection.style.display = "block";
         return;
     }
     
     if (texts.length < 2) {
-        output.innerText = "Please enter at least 2 texts to find common patterns.";
+        output.innerText = "Please provide at least 2 texts to find common patterns.";
+        outputSection.style.display = "block";
         return;
     }
 
     loading.style.display = "inline-block";
+    outputSection.style.display = "none";
     
     setTimeout(() => {
         try {
@@ -111,6 +284,7 @@ function findPatterns() {
             if (tokenSequences.length < 2) {
                 output.innerText = "Need at least 2 valid texts to find patterns.";
                 loading.style.display = "none";
+                outputSection.style.display = "block";
                 return;
             }
 
@@ -118,13 +292,14 @@ function findPatterns() {
             let patterns = findCommonPatterns(tokenSequences, level);
             
             // 結果を表示
-            displayPatternResults(patterns, tokenSequences.length, level, output);
+            displayPatternResults(patterns, tokenSequences.length, level, output, fileContents);
             
         } catch (error) {
             output.innerText = "Error processing texts: " + error.message;
         }
         
         loading.style.display = "none";
+        outputSection.style.display = "block";
     }, 500);
 }
 
@@ -263,13 +438,20 @@ function formatPattern(pattern, level) {
     }
 }
 
-function displayPatternResults(patterns, numTexts, level, output) {
+function displayPatternResults(patterns, numTexts, level, output, fileContents = '') {
+    let result = `Analysis completed using ${currentInputMethod === 'file' ? 'uploaded files' : 'manual input'}\n`;
+    result += `Analyzed ${numTexts} text(s) | Level ${level} analysis\n\n`;
+    
     if (patterns.length === 0) {
-        output.innerText = "No common patterns found.";
+        result += "No common patterns found.";
+        if (fileContents) {
+            result += fileContents;
+        }
+        output.innerText = result;
         return;
     }
     
-    let result = `Found ${patterns.length} common patterns:\n\n`;
+    result += `Found ${patterns.length} common patterns:\n\n`;
     
     // 上位20個まで表示
     let maxDisplay = Math.min(20, patterns.length);
@@ -283,7 +465,12 @@ function displayPatternResults(patterns, numTexts, level, output) {
     }
     
     if (patterns.length > maxDisplay) {
-        result += `... and ${patterns.length - maxDisplay} more patterns`;
+        result += `... and ${patterns.length - maxDisplay} more patterns\n`;
+    }
+    
+    // ファイルの内容を表示（ファイルアップロードの場合）
+    if (fileContents) {
+        result += fileContents;
     }
     
     output.innerText = result;
@@ -292,14 +479,18 @@ function displayPatternResults(patterns, numTexts, level, output) {
 function convertToPast() {
     let text = document.getElementById('textInput').value;
     let output = document.getElementById('output');
+    let outputSection = document.getElementById('outputSection');
     let loading = document.getElementById('loading');
 
     if (text.trim() === "") {
         output.innerText = "Please enter some text.";
+        outputSection.style.display = "block";
         return;
     }
 
     loading.style.display = "inline-block";
+    outputSection.style.display = "none";
+    
     setTimeout(() => {
         let doc = nlp(text);
         let past = doc.sentences().toPastTense().text();
@@ -310,6 +501,7 @@ function convertToPast() {
         let prepsText = preps.length > 0 ? preps.map(p => `- ${p}`).join("\n") : "(none)";
         output.innerText = `${past}\nsentence type: ${type}\nprepositional phrases: ${prepsText}`;
         loading.style.display = "none";
+        outputSection.style.display = "block";
     }, 500);
 }
 
@@ -461,6 +653,8 @@ function showConcludingSentence() {
 function showRandomTemplate(list, label) {
     // Past tense converterのoutputには一切触れず、templateOutputのみを使う
     const templateOutput = document.getElementById('templateOutput');
+    const templateOutputSection = document.getElementById('templateOutputSection');
     const idx = Math.floor(Math.random() * list.length);
     templateOutput.innerText = `${label}:\n${list[idx]}`;
+    templateOutputSection.style.display = "block";
 }
