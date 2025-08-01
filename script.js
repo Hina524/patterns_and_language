@@ -67,21 +67,52 @@ function handleFileSelect(files) {
 
 function readFile(file) {
     const reader = new FileReader();
+    
     reader.onload = function(e) {
-        const content = e.target.result;
-        
-        // ファイル情報を保存
-        const fileInfo = {
-            name: file.name,
-            content: content.trim(),
-            size: file.size
-        };
-        
-        uploadedFiles.push(fileInfo);
-        updateFileList();
+        try {
+            const content = e.target.result;
+            
+            // 内容の検証
+            if (typeof content !== 'string') {
+                throw new Error('File content is not text');
+            }
+            
+            // BOM除去
+            const cleanContent = content.replace(/^\uFEFF/, '');
+            
+            // 基本的なテキストクリーニング
+            const trimmedContent = cleanContent.trim();
+            
+            if (trimmedContent.length === 0) {
+                alert(`File "${file.name}" appears to be empty and will be skipped.`);
+                return;
+            }
+            
+            // ファイル情報を保存
+            const fileInfo = {
+                name: file.name,
+                content: trimmedContent,
+                size: file.size
+            };
+            
+            uploadedFiles.push(fileInfo);
+            updateFileList();
+            
+        } catch (error) {
+            console.error('Error reading file:', error);
+            alert(`Error reading file "${file.name}": ${error.message}`);
+        }
     };
     
-    reader.readAsText(file, 'UTF-8');
+    reader.onerror = function() {
+        alert(`Failed to read file "${file.name}". Please try again.`);
+    };
+    
+    try {
+        reader.readAsText(file, 'UTF-8');
+    } catch (error) {
+        alert(`Failed to process file "${file.name}": ${error.message}`);
+    }
 }
 
 function updateFileList() {
@@ -304,48 +335,138 @@ function findPatterns() {
 }
 
 function tokenizeText(text, level) {
-    let doc = nlp(text);
-    let tokens = [];
-    
-    doc.terms().forEach(term => {
-        let token = term.text();
-        if (token.trim()) {
-            switch(level) {
-                case 1:
-                    // Simple tokens
-                    tokens.push(token);
-                    break;
-                case 2:
-                    // Token + POS
-                    let pos = term.tags().join('|') || 'O';
-                    tokens.push([token, pos]);
-                    break;
-                case 3:
-                    // Token + phrase type
-                    let phraseType = getPhraseType(term);
-                    tokens.push([token, phraseType]);
-                    break;
-                case 4:
-                    // Token + POS + phrase type
-                    let pos4 = term.tags().join('|') || 'O';
-                    let phraseType4 = getPhraseType(term);
-                    tokens.push([token, pos4, phraseType4]);
-                    break;
+    try {
+        // テキストの前処理とバリデーション
+        if (!text || typeof text !== 'string') {
+            throw new Error('Invalid text input');
+        }
+        
+        // 基本的なテキストクリーニング
+        text = text.trim().replace(/\s+/g, ' ');
+        
+        if (text.length === 0) {
+            throw new Error('Empty text after cleaning');
+        }
+        
+        // NLPライブラリの存在確認
+        if (typeof nlp !== 'function') {
+            throw new Error('NLP library not loaded');
+        }
+        
+        let doc = nlp(text);
+        let tokens = [];
+        
+        // termsの存在確認
+        if (!doc.terms || typeof doc.terms !== 'function') {
+            throw new Error('NLP processing failed');
+        }
+        
+        doc.terms().forEach(term => {
+            try {
+                let token = term.text();
+                if (token && token.trim()) {
+                    switch(level) {
+                        case 1:
+                            // Simple tokens
+                            tokens.push(token);
+                            break;
+                        case 2:
+                            // Token + POS using compromise.js correct API
+                            let pos = getTermPOS(term);
+                            tokens.push([token, pos]);
+                            break;
+                        case 3:
+                            // Token + phrase type
+                            let phraseType = getPhraseType(term);
+                            tokens.push([token, phraseType]);
+                            break;
+                        case 4:
+                            // Token + POS + phrase type
+                            let pos4 = getTermPOS(term);
+                            let phraseType4 = getPhraseType(term);
+                            tokens.push([token, pos4, phraseType4]);
+                            break;
+                    }
+                }
+            } catch (termError) {
+                console.warn('Error processing term:', termError);
+                // Skip problematic terms but continue processing
+            }
+        });
+        
+        return tokens;
+        
+    } catch (error) {
+        console.error('Tokenization error:', error);
+        throw new Error(`Text processing failed: ${error.message}`);
+    }
+}
+
+// Helper function to get POS tags using compromise.js correct API
+function getTermPOS(term) {
+    try {
+        // Try multiple methods to get POS information from compromise.js
+        
+        // Method 1: Check if term has specific POS methods
+        if (term.isNoun && term.isNoun()) return 'NOUN';
+        if (term.isVerb && term.isVerb()) return 'VERB';
+        if (term.isAdjective && term.isAdjective()) return 'ADJ';
+        if (term.isAdverb && term.isAdverb()) return 'ADV';
+        if (term.isPronoun && term.isPronoun()) return 'PRON';
+        if (term.isPreposition && term.isPreposition()) return 'ADP';
+        if (term.isConjunction && term.isConjunction()) return 'CONJ';
+        if (term.isDeterminer && term.isDeterminer()) return 'DET';
+        
+        // Method 2: Try to access tag property
+        if (term.tag && typeof term.tag === 'string') {
+            return term.tag.toUpperCase();
+        }
+        
+        // Method 3: Try implicit tag from compromise.js
+        let tagStr = term.implicit || '';
+        if (tagStr) return tagStr.toUpperCase();
+        
+        // Method 4: Try json() method to get detailed info
+        if (term.json && typeof term.json === 'function') {
+            let termData = term.json();
+            if (termData && termData.tag) {
+                return termData.tag.toUpperCase();
             }
         }
-    });
-    
-    return tokens;
+        
+        // Default fallback
+        return 'O';
+        
+    } catch (error) {
+        console.warn('Error getting POS for term:', error);
+        return 'O';
+    }
 }
 
 function getPhraseType(term) {
-    // Simple phrase type detection
-    if (term.has('#Noun')) return 'NP';
-    if (term.has('#Verb')) return 'VP';
-    if (term.has('#Preposition')) return 'PP';
-    if (term.has('#Adjective')) return 'ADJP';
-    if (term.has('#Adverb')) return 'ADVP';
-    return 'O';
+    try {
+        // termオブジェクトの存在確認
+        if (!term) {
+            return 'O';
+        }
+        
+        // compromise.js correct API for phrase type detection
+        // Use is* methods instead of has()
+        if (term.isNoun && term.isNoun()) return 'NP';
+        if (term.isVerb && term.isVerb()) return 'VP';
+        if (term.isPreposition && term.isPreposition()) return 'PP';
+        if (term.isAdjective && term.isAdjective()) return 'ADJP';
+        if (term.isAdverb && term.isAdverb()) return 'ADVP';
+        
+        // Additional checks for determiners and other phrase types
+        if (term.isDeterminer && term.isDeterminer()) return 'DP';
+        if (term.isConjunction && term.isConjunction()) return 'CONJP';
+        
+        return 'O';
+    } catch (error) {
+        console.warn('Error in getPhraseType:', error);
+        return 'O';
+    }
 }
 
 function findCommonPatterns(tokenSequences, level) {
