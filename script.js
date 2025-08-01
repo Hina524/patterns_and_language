@@ -249,8 +249,8 @@ function updateTextLabels() {
     });
 }
 
-// Pattern Finder機能
-function findPatterns() {
+// Pattern Finder機能 - Python API版
+async function findPatterns() {
     let level = parseInt(document.getElementById('levelSelect').value);
     let output = document.getElementById('patternOutput');
     let outputSection = document.getElementById('patternOutputSection');
@@ -298,304 +298,79 @@ function findPatterns() {
     loading.style.display = "inline-block";
     outputSection.style.display = "none";
     
-    setTimeout(() => {
-        try {
-            // 各テキストをトークン化
-            let tokenSequences = [];
-            for (let i = 0; i < texts.length; i++) {
-                let tokens = tokenizeText(texts[i], level);
-                if (tokens && tokens.length > 0) {
-                    tokenSequences.push({
-                        index: i + 1,
-                        tokens: tokens
-                    });
-                }
-            }
-
-            if (tokenSequences.length < 2) {
-                output.innerText = "Need at least 2 valid texts to find patterns.";
-                loading.style.display = "none";
-                outputSection.style.display = "block";
-                return;
-            }
-
-            // 共通パターンを検索
-            let patterns = findCommonPatterns(tokenSequences, level);
-            
-            // 結果を表示
-            displayPatternResults(patterns, tokenSequences.length, level, output, fileContents);
-            
-        } catch (error) {
-            output.innerText = "Error processing texts: " + error.message;
-        }
-        
-        loading.style.display = "none";
-        outputSection.style.display = "block";
-    }, 500);
-}
-
-function tokenizeText(text, level) {
     try {
-        // テキストの前処理とバリデーション
-        if (!text || typeof text !== 'string') {
-            throw new Error('Invalid text input');
-        }
-        
-        // 基本的なテキストクリーニング
-        text = text.trim().replace(/\s+/g, ' ');
-        
-        if (text.length === 0) {
-            throw new Error('Empty text after cleaning');
-        }
-        
-        // NLPライブラリの存在確認
-        if (typeof nlp !== 'function') {
-            throw new Error('NLP library not loaded');
-        }
-        
-        let doc = nlp(text);
-        let tokens = [];
-        
-        // termsの存在確認
-        if (!doc.terms || typeof doc.terms !== 'function') {
-            throw new Error('NLP processing failed');
-        }
-        
-        doc.terms().forEach(term => {
-            try {
-                let token = term.text();
-                if (token && token.trim()) {
-                    switch(level) {
-                        case 1:
-                            // Simple tokens
-                            tokens.push(token);
-                            break;
-                        case 2:
-                            // Token + POS using compromise.js correct API
-                            let pos = getTermPOS(term);
-                            tokens.push([token, pos]);
-                            break;
-                        case 3:
-                            // Token + phrase type
-                            let phraseType = getPhraseType(term);
-                            tokens.push([token, phraseType]);
-                            break;
-                        case 4:
-                            // Token + POS + phrase type
-                            let pos4 = getTermPOS(term);
-                            let phraseType4 = getPhraseType(term);
-                            tokens.push([token, pos4, phraseType4]);
-                            break;
-                    }
-                }
-            } catch (termError) {
-                console.warn('Error processing term:', termError);
-                // Skip problematic terms but continue processing
-            }
+        // Python APIを呼び出し
+        const response = await fetch('/api/find-patterns', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                texts: texts,
+                level: level
+            })
         });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
         
-        return tokens;
+        if (result.error) {
+            output.innerText = "Error: " + result.error;
+        } else {
+            // 成功した場合の結果表示
+            displayApiPatternResults(result, fileContents, output);
+        }
         
     } catch (error) {
-        console.error('Tokenization error:', error);
-        throw new Error(`Text processing failed: ${error.message}`);
-    }
-}
-
-// Helper function to get POS tags using compromise.js correct API
-function getTermPOS(term) {
-    try {
-        // Try multiple methods to get POS information from compromise.js
-        
-        // Method 1: Check if term has specific POS methods
-        if (term.isNoun && term.isNoun()) return 'NOUN';
-        if (term.isVerb && term.isVerb()) return 'VERB';
-        if (term.isAdjective && term.isAdjective()) return 'ADJ';
-        if (term.isAdverb && term.isAdverb()) return 'ADV';
-        if (term.isPronoun && term.isPronoun()) return 'PRON';
-        if (term.isPreposition && term.isPreposition()) return 'ADP';
-        if (term.isConjunction && term.isConjunction()) return 'CONJ';
-        if (term.isDeterminer && term.isDeterminer()) return 'DET';
-        
-        // Method 2: Try to access tag property
-        if (term.tag && typeof term.tag === 'string') {
-            return term.tag.toUpperCase();
-        }
-        
-        // Method 3: Try implicit tag from compromise.js
-        let tagStr = term.implicit || '';
-        if (tagStr) return tagStr.toUpperCase();
-        
-        // Method 4: Try json() method to get detailed info
-        if (term.json && typeof term.json === 'function') {
-            let termData = term.json();
-            if (termData && termData.tag) {
-                return termData.tag.toUpperCase();
-            }
-        }
-        
-        // Default fallback
-        return 'O';
-        
-    } catch (error) {
-        console.warn('Error getting POS for term:', error);
-        return 'O';
-    }
-}
-
-function getPhraseType(term) {
-    try {
-        // termオブジェクトの存在確認
-        if (!term) {
-            return 'O';
-        }
-        
-        // compromise.js correct API for phrase type detection
-        // Use is* methods instead of has()
-        if (term.isNoun && term.isNoun()) return 'NP';
-        if (term.isVerb && term.isVerb()) return 'VP';
-        if (term.isPreposition && term.isPreposition()) return 'PP';
-        if (term.isAdjective && term.isAdjective()) return 'ADJP';
-        if (term.isAdverb && term.isAdverb()) return 'ADVP';
-        
-        // Additional checks for determiners and other phrase types
-        if (term.isDeterminer && term.isDeterminer()) return 'DP';
-        if (term.isConjunction && term.isConjunction()) return 'CONJP';
-        
-        return 'O';
-    } catch (error) {
-        console.warn('Error in getPhraseType:', error);
-        return 'O';
-    }
-}
-
-function findCommonPatterns(tokenSequences, level) {
-    let patterns = new Map();
-    
-    // 最短のシーケンスを基準にする
-    let baseSeq = tokenSequences.reduce((shortest, current) => 
-        current.tokens.length < shortest.tokens.length ? current : shortest
-    );
-    
-    // すべての可能な部分列をチェック
-    for (let length = Math.min(baseSeq.tokens.length, 10); length > 0; length--) {
-        for (let start = 0; start <= baseSeq.tokens.length - length; start++) {
-            let pattern = baseSeq.tokens.slice(start, start + length);
-            let patternKey = JSON.stringify(pattern);
-            
-            // このパターンが他のシーケンスにも存在するかチェック
-            let foundInTexts = new Set();
-            let totalCount = 0;
-            
-            for (let seq of tokenSequences) {
-                let count = countPatternInSequence(pattern, seq.tokens, level);
-                if (count > 0) {
-                    foundInTexts.add(seq.index);
-                    totalCount += count;
-                }
-            }
-            
-            // 少なくとも2つのテキストに存在する場合のみ保存
-            if (foundInTexts.size >= 2) {
-                if (!patterns.has(patternKey) || patterns.get(patternKey).count < totalCount) {
-                    patterns.set(patternKey, {
-                        pattern: pattern,
-                        count: totalCount,
-                        texts: foundInTexts.size,
-                        length: length
-                    });
-                }
-            }
-        }
+        output.innerText = "Error connecting to analysis service: " + error.message + 
+                          "\nPlease ensure the server is running and spaCy is installed.";
     }
     
-    // 結果をソート（長さ、出現回数、テキスト数順）
-    return Array.from(patterns.values()).sort((a, b) => {
-        if (a.length !== b.length) return b.length - a.length;
-        if (a.count !== b.count) return b.count - a.count;
-        return b.texts - a.texts;
-    });
+    loading.style.display = "none";
+    outputSection.style.display = "block";
 }
 
-function countPatternInSequence(pattern, sequence, level) {
-    let count = 0;
-    let patternLen = pattern.length;
-    let seqLen = sequence.length;
+// API結果表示関数
+function displayApiPatternResults(result, fileContents, output) {
+    let displayText = `Analysis completed using ${currentInputMethod === 'file' ? 'uploaded files' : 'manual input'}\n`;
+    displayText += `Analyzed ${result.num_texts} text(s) | Level ${result.level} analysis\n\n`;
     
-    for (let i = 0; i <= seqLen - patternLen; i++) {
-        let match = true;
-        for (let j = 0; j < patternLen; j++) {
-            if (!tokensEqual(pattern[j], sequence[i + j], level)) {
-                match = false;
-                break;
-            }
-        }
-        if (match) {
-            count++;
-        }
-    }
-    
-    return count;
-}
-
-function tokensEqual(token1, token2, level) {
-    if (level === 1) {
-        return token1 === token2;
-    } else {
-        return JSON.stringify(token1) === JSON.stringify(token2);
-    }
-}
-
-function formatPattern(pattern, level) {
-    switch(level) {
-        case 1:
-            return pattern.join(' ');
-        case 2:
-            return pattern.map(([token, pos]) => `${token}(${pos})`).join(' ');
-        case 3:
-            return pattern.map(([token, phrase]) => `${token}[${phrase}]`).join(' ');
-        case 4:
-            return pattern.map(([token, pos, phrase]) => `${token}(${pos})[${phrase}]`).join(' ');
-    }
-}
-
-function displayPatternResults(patterns, numTexts, level, output, fileContents = '') {
-    let result = `Analysis completed using ${currentInputMethod === 'file' ? 'uploaded files' : 'manual input'}\n`;
-    result += `Analyzed ${numTexts} text(s) | Level ${level} analysis\n\n`;
-    
-    if (patterns.length === 0) {
-        result += "No common patterns found.";
+    if (result.patterns.length === 0) {
+        displayText += "No common patterns found.";
         if (fileContents) {
-            result += fileContents;
+            displayText += fileContents;
         }
-        output.innerText = result;
+        output.innerText = displayText;
         return;
     }
     
-    result += `Found ${patterns.length} common patterns:\n\n`;
+    displayText += `Found ${result.patterns.length} common patterns:\n\n`;
     
-    // 上位20個まで表示
-    let maxDisplay = Math.min(20, patterns.length);
-    for (let i = 0; i < maxDisplay; i++) {
-        let p = patterns[i];
-        let formatted = formatPattern(p.pattern, level);
-        result += `${i + 1}. Pattern: "${formatted}"\n`;
-        result += `   Length: ${p.length} tokens\n`;
-        result += `   Total occurrences: ${p.count}\n`;
-        result += `   Found in ${p.texts} text(s)\n\n`;
+    // パターンを表示
+    for (let i = 0; i < result.patterns.length; i++) {
+        let pattern = result.patterns[i];
+        displayText += `${i + 1}. Pattern: "${pattern.pattern}"\n`;
+        displayText += `   Length: ${pattern.length} ${pattern.length === 1 ? 'token' : 'tokens'}\n`;
+        displayText += `   Total occurrences: ${pattern.count}\n`;
+        displayText += `   Found in ${pattern.texts} file(s)\n\n`;
     }
     
-    if (patterns.length > maxDisplay) {
-        result += `... and ${patterns.length - maxDisplay} more patterns\n`;
+    if (result.total_patterns > result.patterns.length) {
+        displayText += `... and ${result.total_patterns - result.patterns.length} more patterns\n`;
     }
     
     // ファイルの内容を表示（ファイルアップロードの場合）
     if (fileContents) {
-        result += fileContents;
+        displayText += fileContents;
     }
     
-    output.innerText = result;
+    output.innerText = displayText;
 }
+
+
 
 function convertToPast() {
     let text = document.getElementById('textInput').value;

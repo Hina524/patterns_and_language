@@ -5,6 +5,7 @@ import glob
 from collections import defaultdict
 import argparse
 import spacy
+import json
 
 class PatternFinder:
     def __init__(self, level=1):
@@ -56,51 +57,183 @@ class PatternFinder:
             return [(token.text, token.pos_) for token in doc if not token.is_space]
         
         elif self.level == 3:
-            # Token + phrase
+            # Token + phrase (exclude punctuation)
             doc = self.nlp(text)
+            phrase_map = self._build_phrase_map(doc)
             tokens = []
             for token in doc:
-                if token.is_space:
-                    continue
-                phrase_type = self.get_phrase_type(token, doc)
+                if token.is_space or token.pos_ == 'PUNCT':
+                    continue  # Skip punctuation in phrase analysis
+                phrase_type = self.get_phrase_type(token, doc, phrase_map)
                 tokens.append((token.text, phrase_type))
             return tokens
         
         elif self.level == 4:
             # Token + POS + phrase
             doc = self.nlp(text)
+            phrase_map = self._build_phrase_map(doc)
             tokens = []
             for token in doc:
                 if token.is_space:
                     continue
-                phrase_type = self.get_phrase_type(token, doc)
-                tokens.append((token.text, token.pos_, phrase_type))
+                if token.pos_ == 'PUNCT':
+                    # For punctuation, only include POS, no phrase type
+                    tokens.append((token.text, token.pos_, 'O'))
+                else:
+                    phrase_type = self.get_phrase_type(token, doc, phrase_map)
+                    tokens.append((token.text, token.pos_, phrase_type))
             return tokens
     
-    def get_phrase_type(self, token, doc):
-        """Get phrase type for a token"""
-        # Check if token is part of a noun chunk
+    def get_phrase_type(self, token, doc, phrase_map=None):
+        """Get phrase type for a token using comprehensive spaCy analysis"""
+        
+        # Build phrase map if not provided
+        if phrase_map is None:
+            phrase_map = self._build_phrase_map(doc)
+        
+        # Return the phrase type for this token
+        return phrase_map.get(token.i, 'O')
+    
+    def _build_phrase_map(self, doc):
+        """Build a comprehensive map of phrase types for all tokens"""
+        phrase_map = {}
+        
+        # Step 1: Mark noun chunks
         for chunk in doc.noun_chunks:
-            if token.i >= chunk.start and token.i < chunk.end:
-                return 'NP'
+            for i in range(chunk.start, chunk.end):
+                phrase_map[i] = 'NP'
         
-        # Check for verb phrase (simple heuristic)
-        if token.pos_ in ['VERB', 'AUX']:
-            return 'VP'
+        # Step 2: Identify verb phrases
+        for token in doc:
+            if token.pos_ in ['VERB', 'AUX'] and token.i not in phrase_map:
+                vp_tokens = self._get_verb_phrase_tokens(token, doc)
+                for i in vp_tokens:
+                    if i not in phrase_map:  # Don't overwrite noun chunks
+                        phrase_map[i] = 'VP'
         
-        # Check for prepositional phrase
-        if token.pos_ == 'ADP' or token.dep_ == 'prep':
-            return 'PP'
+        # Step 3: Identify prepositional phrases
+        for token in doc:
+            if token.pos_ == 'ADP' and token.i not in phrase_map:
+                pp_tokens = self._get_prepositional_phrase_tokens(token, doc)
+                for i in pp_tokens:
+                    if i not in phrase_map:  # Don't overwrite existing phrases
+                        phrase_map[i] = 'PP'
         
-        # Check for adjective phrase
-        if token.pos_ == 'ADJ':
-            return 'ADJP'
+        # Step 4: Identify adjective phrases
+        for token in doc:
+            if token.pos_ == 'ADJ' and token.i not in phrase_map:
+                adjp_tokens = self._get_adjective_phrase_tokens(token, doc)
+                for i in adjp_tokens:
+                    if i not in phrase_map:
+                        phrase_map[i] = 'ADJP'
         
-        # Check for adverb phrase
-        if token.pos_ == 'ADV':
-            return 'ADVP'
+        # Step 5: Identify adverb phrases
+        for token in doc:
+            if token.pos_ == 'ADV' and token.i not in phrase_map:
+                advp_tokens = self._get_adverb_phrase_tokens(token, doc)
+                for i in advp_tokens:
+                    if i not in phrase_map:
+                        phrase_map[i] = 'ADVP'
         
-        return 'O'  # Other
+        # Step 6: Handle remaining tokens with specific rules
+        for token in doc:
+            if token.i not in phrase_map:
+                phrase_map[token.i] = self._classify_remaining_token(token, doc)
+        
+        return phrase_map
+    
+    def _get_verb_phrase_tokens(self, verb, doc):
+        """Get all tokens that belong to a verb phrase headed by this verb"""
+        vp_tokens = {verb.i}
+        
+        # Include auxiliary verbs and particles
+        for child in verb.children:
+            if child.dep_ in ['aux', 'auxpass', 'neg', 'prt']:
+                vp_tokens.add(child.i)
+        
+        # Include infinitive marker 'to' when it's part of infinitive
+        if verb.dep_ == 'xcomp' and verb.head.pos_ == 'VERB':
+            # Look for 'to' before this verb
+            for i in range(max(0, verb.i - 2), verb.i):
+                if doc[i].text.lower() == 'to' and doc[i].dep_ == 'aux':
+                    vp_tokens.add(i)
+        
+        return vp_tokens
+    
+    def _get_prepositional_phrase_tokens(self, prep, doc):
+        """Get all tokens that belong to a prepositional phrase headed by this preposition"""
+        pp_tokens = {prep.i}
+        
+        # Include the object of the preposition and its modifiers
+        for child in prep.children:
+            if child.dep_ == 'pobj':
+                # Add the object and its subtree (but avoid noun chunks already marked)
+                pp_tokens.add(child.i)
+                for desc in child.subtree:
+                    if desc.i != child.i:  # Don't double-add the head
+                        pp_tokens.add(desc.i)
+        
+        return pp_tokens
+    
+    def _get_adjective_phrase_tokens(self, adj, doc):
+        """Get all tokens that belong to an adjective phrase headed by this adjective"""
+        adjp_tokens = {adj.i}
+        
+        # Include adverbs modifying the adjective
+        for child in adj.children:
+            if child.dep_ == 'advmod':
+                adjp_tokens.add(child.i)
+        
+        return adjp_tokens
+    
+    def _get_adverb_phrase_tokens(self, adv, doc):
+        """Get all tokens that belong to an adverb phrase headed by this adverb"""
+        advp_tokens = {adv.i}
+        
+        # Include modifying adverbs
+        for child in adv.children:
+            if child.dep_ == 'advmod':
+                advp_tokens.add(child.i)
+        
+        return advp_tokens
+    
+    def _classify_remaining_token(self, token, doc):
+        """Classify tokens that don't belong to major phrase types"""
+        
+        # Determiners are often part of noun phrases, but if not already marked
+        if token.pos_ == 'DET':
+            return 'DP'  # Determiner Phrase
+        
+        # Coordinating conjunctions
+        if token.pos_ == 'CCONJ':
+            return 'CONJP'
+        
+        # Subordinating conjunctions and complementizers
+        if token.pos_ == 'SCONJ' or token.dep_ == 'mark':
+            return 'CONJP'
+        
+        # Infinitive marker 'to'
+        if token.text.lower() == 'to' and token.pos_ == 'PART':
+            return 'INFP'  # Infinitive Phrase marker
+        
+        # Particles and other function words
+        if token.pos_ in ['PART', 'INTJ']:
+            return 'PART'
+        
+        # Punctuation (should not be classified as phrase type)
+        if token.pos_ == 'PUNCT':
+            return 'O'
+        
+        # Numbers
+        if token.pos_ == 'NUM':
+            return 'NUM'
+        
+        # Pronouns not in noun chunks
+        if token.pos_ == 'PRON':
+            return 'NP'  # Treat standalone pronouns as noun phrases
+        
+        # Default for anything else
+        return 'O'
     
     def find_common_patterns(self, token_sequences):
         """Find all common patterns across sequences"""
@@ -170,8 +303,61 @@ class PatternFinder:
         elif self.level == 4:
             return ' '.join([f"{token}({pos})[{phrase}]" for token, pos, phrase in pattern])
     
+    def analyze_texts(self, texts_list):
+        """Analyze texts from list of strings for web API"""
+        if len(texts_list) < 2:
+            return {
+                "error": "Need at least 2 texts to find common patterns",
+                "patterns": []
+            }
+        
+        try:
+            # Tokenize each text
+            token_sequences = []
+            for i, text in enumerate(texts_list):
+                if text and text.strip():
+                    tokens = self.tokenize(text.strip())
+                    if tokens:
+                        token_sequences.append((f"Text {i+1}", tokens))
+            
+            if len(token_sequences) < 2:
+                return {
+                    "error": "Need at least 2 non-empty texts to find patterns",
+                    "patterns": []
+                }
+            
+            # Find common patterns
+            patterns = self.find_common_patterns(token_sequences)
+            
+            # Format results for JSON response
+            result_patterns = []
+            max_display = min(20, len(patterns))
+            
+            for pattern, count, num_files in patterns[:max_display]:
+                formatted = self.format_pattern(pattern)
+                result_patterns.append({
+                    "pattern": formatted,
+                    "length": len(pattern),
+                    "count": count,
+                    "texts": num_files
+                })
+            
+            return {
+                "success": True,
+                "num_texts": len(token_sequences),
+                "level": self.level,
+                "total_patterns": len(patterns),
+                "patterns": result_patterns
+            }
+            
+        except Exception as e:
+            return {
+                "error": f"Analysis failed: {str(e)}",
+                "patterns": []
+            }
+
     def run(self, folder_path):
-        """Main execution"""
+        """Main execution for command line"""
         # Get files
         files = self.get_files_from_folder(folder_path)
         print(f"Found {len(files)} text file(s) in {folder_path}")
