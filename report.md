@@ -1,12 +1,12 @@
-# English Learning Support Web Application
+# Name of your Pattern-matching Tool
 https://github.com/Hina524/patterns_and_language
 # Group members
 
-| 学籍番号     | 氏名           | 貢献内容                                           |
-| -------- | ------------ | ---------------------------------------------- |
-| s1310141 | Hina Konishi | 70% (main programmer, report, analysis) |
-| s1290116 | Tsubasa Sato | 30% (analysis)                                 |
-# **1. Tool description**
+| 学籍番号     | 氏名           | 貢献内容                                          |
+| -------- | ------------ | --------------------------------------------- |
+| s1310141 | Hina Konishi | 70% (main programmer, test, report, analysis) |
+| s1290116 | Tsubasa Sato | 30% (analysis)                                |
+# 1. Tool description
 ## Webアプリケーション全体の目的
 
 このWebアプリケーションは、**英語学習者、言語処理学習者の包括的な言語習得支援システム**として設計されています。
@@ -46,78 +46,111 @@ https://github.com/Hina524/patterns_and_language
 - **比較言語学習**: 類似文構造の客観的分析による理解深化
 - **語学研究支援**: corpus linguisticsの基礎的手法の実践
 - **多層分析体験**: 語彙→品詞→句構造の段階的言語理解
-
 # 2. Language analysis
 ## 1. English Grammar Analyzer機能
 ### Analysis
 #### 1. 時制変換
-```javascript
-let doc = nlp(text);
-let past = doc.sentences().toPastTense().text();
+```python
+def convert_to_past_tense(self, text: str) -> str:
+    doc = self.nlp(text)
+    tokens = []
+    for token in doc:
+        if self._should_convert_to_past(token, doc):
+            past_form = self._get_past_form(token)
+            tokens.append(past_form)
+        else:
+            tokens.append(token.text)
 ```
 
 **言語理論的基盤:**
-- **英語動詞活用体系**: 規則動詞（-ed付加）・不規則動詞（語幹変化）の自動識別
+- **spaCy依存関係解析**: 文構造の正確な把握による文脈適応型動詞変換
+- **英語動詞活用体系**: 規則動詞（-ed付加）・不規則動詞（語幹変化）・助動詞の包括的処理
 - **時制一致原理**: 文全体における時制の統一性維持
-- **compromise.js 形態論解析**: 語幹抽出→活用語尾処理→不規則動詞辞書照合
-#### 2. 文構造分析
-**理論的基盤: Traditional Grammar + Structural Linguistics**
+- **高精度形態論解析**: 語幹抽出→活用語尾処理→不規則動詞辞書照合
+- **不規則動詞辞書**: 例) 80+ irregular verbs（shine→shone, swim→swam等）
+- **協調動詞処理**: 例) "swim, run, and fly" → "swam, ran, and flew"
+- **助動詞変換**: 例) "can" → "could", "will" → "would"
 
-1. **Simple Sentence（単文）**: 主語+動詞の基本構造
+#### 2. 文構造分析
+**理論的基盤: Dependency Grammar + Syntactic Parsing**
+
+```python
+def get_sentence_type(self, text: str) -> str:
+    doc = self.nlp(text)
+    subordinators = {'after', 'although', 'as', 'because', 'before'...}
+    
+    # 従属節検出
+    for token in doc:
+        if token.text.lower() in subordinators:
+            if any(child.dep_ in ['ccomp', 'advcl', 'acl'] 
+                   for child in token.head.children):
+                return 'complex'
+```
+
+1. **Simple Sentence（単文）**: 単一主語+動詞構造
 2. **Compound Sentence（重文）**: 等位接続詞による独立節結合
-``` js
-// 重文判定に使用する等位接続詞リスト
-const conjunctions = ['and', 'but', 'or', 'nor', 'for', 'yet', 'so'];
-```
-1. **Complex Sentence（複文）**: 従属接続詞による主節+従属節構造
-```javascript
-// 複文判定に使用する従属接続詞リスト
-const subordinators = [
-    'after', 'although', 'as', 'because', 'before', 'even if', 'even though',
-    'if', 'once', 'since', 'so that', 'than', 'though', 'unless',
-    'until', 'when', 'whenever', 'where', 'whereas', 'wherever', 'whether', 'while'
-];
-```
+3. **Complex Sentence（複文）**: 従属接続詞による主節+従属節構造
+
+**spaCy依存関係ラベル活用:**
+- `ccomp`: 節補語 (clausal complement)
+- `advcl`: 副詞節 (adverbial clause modifier)  
+- `acl`: 関係節 (clausal modifier of noun)
+
 #### 3. 前置詞句抽出
-**統語論的パターンマッチング:**
-```javascript
-let matches = doc.match('#Preposition .+? #Noun');
+**依存関係解析による高精度抽出:**
+```python
+def get_prepositional_phrases(self, text: str) -> List[str]:
+    doc = self.nlp(text)
+    for token in doc:
+        if token.pos_ == 'ADP':  # 前置詞検出
+            for child in token.children:
+                if child.dep_ == 'pobj':  # 前置詞の目的語
+                    phrase_tokens.extend(self._get_noun_phrase_tokens(child, doc))
 ```
-- **構文パターン**: [前置詞] + [修飾語群] + [名詞]
-- **句境界認識**: 非貪欲マッチング（.+?）による適切な境界検出
+
+- **構文解析**: 前置詞 + 依存関係による目的語特定
+- **句境界認識**: 修飾語・限定詞の包括的検出
+- **ネスト構造**: "in the garden behind the house near the river"
+
 ### Algorithm Diagram
 
 ``` mermaid
 flowchart TD
-    A[入力テキスト] --> B[compromise.js NLP処理]
-    B --> C[文書オブジェクト生成]
+    A[入力テキスト] --> B[spaCy NLP処理]
+    B --> C[依存関係解析完了]
     C --> D[時制変換処理]
     C --> E[文構造分析]
     C --> F[前置詞句抽出]
     
-    D --> D1[動詞識別]
-    D1 --> D2[規則/不規則判定]
-    D2 --> D3[過去形変換]
+    D --> D1[動詞・助動詞識別]
+    D1 --> D2[変換判定ロジック]
+    D2 --> D3{協調構造?}
+    D3 -->|Yes| D4[協調動詞変換]
+    D3 -->|No| D5[単一動詞変換]
+    D4 --> D6[不規則動詞辞書]
+    D5 --> D6
+    D6 --> D7[規則動詞ルール]
     
     E --> E1[従属接続詞検索]
-    E1 --> E2{従属接続詞存在?}
-    E2 -->|Yes| E3[Complex判定]
+    E1 --> E2{依存関係ラベル確認}
+    E2 -->|ccomp/advcl/acl| E3[Complex判定]
     E2 -->|No| E4[等位接続詞分析]
-    E4 --> E5{主語+動詞構造?}
+    E4 --> E5{複数主動詞?}
     E5 -->|Yes| E6[Compound判定]
     E5 -->|No| E7[Simple判定]
     
-    F --> F1[前置詞識別]
-    F1 --> F2[修飾語範囲特定]
-    F2 --> F3[名詞終端検出]
-    F3 --> F4[前置詞句抽出]
+    F --> F1[ADP品詞検出]
+    F1 --> F2[pobj依存関係]
+    F2 --> F3[名詞句拡張]
+    F3 --> F4[句境界確定]
     
-    D3 --> G[結果統合]
+    D7 --> G[Flask API Response]
     E3 --> G
     E6 --> G
     E7 --> G
     F4 --> G
-    G --> H[出力表示]
+    G --> H[JSON結果返却]
+    H --> I[フロントエンド表示]
 ```
 Fig. 1: [English Grammar Analyzer機能のAlgorithm Diagram]
 ## 2. Template Sentence Generator機能
@@ -355,7 +388,134 @@ Fig. 3: [Pattern Finder機能のAlgorithm Diagram]
 - **CSS3**
 ### 主要ライブラリ
 - **Flask 3.0.0**: 軽量Webフレームワーク
-- **spaCy 3.8.5**: 産業標準NLPライブラリ
-- **compromise.js**: クライアント側言語処理
+- **spaCy 3.8.5**: 産業標準NLPライブラリ（English Grammar Analyzer & Pattern Finder backend）
 - **W3.CSS**: レスポンシブCSSフレームワーク
-## 
+
+## 1. アプリケーション全体
+### レスポンシブデザイン
+全ての利用場面に対応するため、PC、スマートフォンのどちらからアクセスしても利用ができるようにしています。
+![[スクリーンショット 2025-08-02 22.06.12.png]]
+Fig. 4: [PCで起動した際の画面]
+
+![[スクリーンショット 2025-08-02 22.07.05.png|400]]
+Fig. 5: [スマートフォンで起動した際の画面]
+### タブインターフェース
+本アプリケーションは3つの機能があるため、MUIを参考にタブで機能切り替えができるようにしました。
+![[スクリーンショット 2025-08-02 19.12.52.png]]
+Fig. 6: [タブの画面]
+
+```css
+.tab-button {
+    transition: all 0.3s ease;
+    border-bottom: 2px solid transparent;
+}
+.tab-button.active {
+    color: orange;
+    border-bottom-color: orange;
+}
+```
+## 2. English Grammar Analyzer機能
+### 機能利用例
+![[スクリーンショット 2025-08-02 22.06.12.png]]
+Fig. 7: [English Grammar Analyzer機能の入力画面]
+上記の初期画面のInput部分に英文を入力し、「Process」ボタンを押すと、
+![[スクリーンショット 2025-08-02 22.24.46.png]]
+Fig. 8: [English Grammar Analyzer機能の結果表示画面]
+上記画像のように結果が表示されます。
+
+### 工夫点
+#### テキスト入力エリアの行数が入力文の長さに合わせて変動する
+当初の実装では、長文を入力すると文字が見切れてしまったため、改善しました。Fig. 8の画像と比較し、Fig. 9ではテキスト入力エリアの行数が増えていることがわかります。
+
+```javascript
+function autoResize(textarea) {
+    textarea.style.height = 'auto';
+    const minHeight = 3 * 24; // 3 lines
+    const maxHeight = 10 * 24; // 10 lines
+    const scrollHeight = textarea.scrollHeight;
+    // 動的高さ調整ロジック
+}
+```
+
+![[スクリーンショット 2025-08-02 22.25.33.png]]
+Fig. 9: [English Grammar Analyzer機能の入力エリアに長文を入力した画像]
+## 3. Template Sentence Generator機能
+### 機能利用例
+オレンジ色のボタンのいずれかを選択して押すことで、選択したカテゴリのテンプレートが出力されます。
+![[スクリーンショット 2025-08-02 22.29.03.png]]
+Fig. 10: [Template Sentence Generator機能の結果表示画面]
+### 工夫点
+#### レスポンシブデザイン
+スマホサイズ（600px以下）での Template Sentence Generator ボタンについて、PCサイズでのレイアウト(2×2)にすると文字が潰れてしまうので、縦一列の中央揃えにしました。
+``` css
+/* Template Sentence Generatorのボタン中央寄せ */
+#templateTab .w3-row-padding {
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+}
+
+#templateTab .w3-col {
+	display: block;
+	float: none;
+	width: auto;
+	max-width: 280px;
+}
+
+#templateTab .w3-button-orange {
+	margin: 0 auto;
+	display: block;
+	width: auto;
+	min-width: 200px;
+	max-width: 280px;
+}
+```
+
+![[スクリーンショット 2025-08-02 22.48.07.png|400]]
+Fig. 11: [Template Sentence Generator機能のスマホサイズの画面]
+## 4. Pattern Finder機能
+### 機能利用例
+最初に「Manual Text Input」（手入力）か「Upload Text Files」を選択します。
+![[スクリーンショット 2025-08-02 22.53.40.png]]
+Fig. 12: [Pattern Finder機能の初期画面]
+#### 「Manual Text Input」を選択した場合
+テキストを入力したあと、Levelを選択し、Processを押します。そうすると、結果が以下のように出力されます。３種類以上のテキストを分析する際は、「Add Text」ボタンを押すとテキスト入力エリアが増え、さらにテキストを入力することができます。
+![[スクリーンショット 2025-08-02 22.55.56.png]]
+Fig. 13: [Pattern Finder機能でManual Text Inputを選択した場合の結果画面]
+#### 「Upload Text Files」を選択した場合
+この場合、まずFig. 14のような画面に移動します。
+- 枠内にテキストファイルをドラッグ&ドロップをする
+- Select Text Filesボタンを押す
+のいずれかの方法でテキストを入力することができます。ファイルは.txtファイルしかアップロードできないようになっています。
+![[スクリーンショット 2025-08-02 23.09.26.png]]
+Fig. 14: [Pattern Finder機能でUpload Text Filesを選択した場合の初期画面]
+
+ファイルをアップロードすると、Fig. 15のように、Upload Filesの中で、入力したテキストの内容を確認することができます。レベルを選択し、Processボタンを押してからの画面は「Manual Text Input」を選択した場合と同様になります。
+![[スクリーンショット 2025-08-02 23.27.28.png]]
+Fig. 15: [Pattern Finder機能でテキストファイルをアップロードした際の画面]
+### 工夫点
+#### 1. デュアル入力システム
+- **Textbox Input**: 動的テキストエリア追加/削除機能
+- **File Upload**: ドラッグ&ドロップ + ファイル選択の二重サポート
+##### 目的
+**テキストボックス入力方式**
+- 一般的な英語学習者はテキストをテキストファイルで所持しているケースは少なく、パターン分析をしたい英文を見つけたらすぐコピー＆ペーストで分析を実行できるようにしたい
+- スマートフォン対応もしているため、この場合もこちらの方式が適切であると判断
+	-> 一般的な英語学習者にはファイルアップロードよりこちらの方式が適切であると判断しました
+
+**ファイルアップロード方式**
+- NLP学習者はテキストをテキストファイルで保持していることが一般的であるため、こちらの方式が適切であると判断しました
+- 分析を何回も繰り返すことを考えても、こちらが適切であると判断しました
+
+以上より、テキストを与えるだけでも、二つの需要があることから、二つの方式を取ることは必須であると考えました
+#### 2. ファイルアップロード時の分析対象テキスト表示
+テキストボックスで入力する際は、テキストボックスを確認すれば分析対象のテキストを確認することができますが、アップロードの場合は確認することができませんでした。分析対象のテキストと出力結果を比較することが重要であるため、この機能を追加しました。
+また、ユーザーフレンドリーな実装にするため、Fig. 16のように、分析対象のテキストの長さに合わせて表示枠が変動するようになっています。
+![[スクリーンショット 2025-08-02 23.33.05.png]]
+Fig. 16: [Pattern Finder機能で分析対象のテキストを確認する画面1]
+
+また、文章が長すぎたり、スマホで見る場合は、Fig. 17のように一定の行数を超えるとスクロールができ流ようになり、必要以上に表示行数を増やさない工夫をしています。
+![[スクリーンショット 2025-08-02 23.53.19.png|400]]
+Fig. 17: [Pattern Finder機能で分析対象のテキストを確認する画面2]
