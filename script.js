@@ -19,6 +19,27 @@ function openTab(evt, tabName) {
     evt.currentTarget.classList.add("active");
 }
 
+// テキストエリア自動リサイズ機能
+function autoResize(textarea) {
+    // 高さをリセットしてスクロール高さを取得
+    textarea.style.height = 'auto';
+    
+    // 内容に合わせて高さを調整（最小3行、最大10行）
+    const minHeight = 3 * 24; // 3行分の高さ（行の高さを24pxと仮定）
+    const maxHeight = 10 * 24; // 10行分の高さ
+    const scrollHeight = textarea.scrollHeight;
+    
+    if (scrollHeight < minHeight) {
+        textarea.style.height = minHeight + 'px';
+    } else if (scrollHeight > maxHeight) {
+        textarea.style.height = maxHeight + 'px';
+        textarea.style.overflowY = 'scroll';
+    } else {
+        textarea.style.height = scrollHeight + 'px';
+        textarea.style.overflowY = 'hidden';
+    }
+}
+
 // テキスト入力エリアの動的追加機能
 let textInputCounter = 2;
 let uploadedFiles = [];
@@ -126,8 +147,7 @@ function updateFileList() {
     let html = '<h4 class="w3-text-orange">Uploaded Files:</h4>';
     uploadedFiles.forEach((file, index) => {
         const sizeKB = (file.size / 1024).toFixed(1);
-        const contentPreview = file.content.length > 100 ? 
-            file.content.substring(0, 100) + '...' : file.content;
+        const contentPreview = file.content; // 全テキストを表示
         
         html += `
             <div class="file-item w3-card w3-margin-bottom w3-padding">
@@ -276,10 +296,11 @@ async function findPatterns() {
         texts = uploadedFiles.map(file => file.content).filter(content => content.length > 0);
         
         // ファイル内容を表示用に準備
-        fileContents = '\n--- Uploaded File Contents ---\n\n';
+        fileContents = '\n=== Uploaded File Contents ===\n\n';
         uploadedFiles.forEach((file, index) => {
-            fileContents += `File ${index + 1}: ${file.name}\n`;
-            fileContents += `Content: ${file.content}\n\n`;
+            fileContents += `📄 File ${index + 1}: ${file.name}\n`;
+            fileContents += `Content:\n${file.content}\n`;
+            fileContents += `${'-'.repeat(50)}\n\n`;
         });
     }
 
@@ -394,8 +415,8 @@ function convertToPast() {
         let type = getSentenceType(text);
         // 前置詞句の抽出
         let preps = getPrepositionalPhrases(text);
-        let prepsText = preps.length > 0 ? preps.map(p => `- ${p}`).join("\n") : "(none)";
-        output.innerText = `${past}\nsentence type: ${type}\nprepositional phrases: ${prepsText}`;
+        let prepsText = preps.length > 0 ? preps.map(p => `・${p}`).join("\n") : "・(none)";
+        output.innerText = `${past}\nsentence type:\n・${type}\nprepositional phrases: \n${prepsText}`;
         loading.style.display = "none";
         outputSection.style.display = "block";
     }, 500);
@@ -554,3 +575,20 @@ function showRandomTemplate(list, label) {
     templateOutput.innerText = `${label}:\n${list[idx]}`;
     templateOutputSection.style.display = "block";
 }
+
+// ページロード時の初期化
+document.addEventListener('DOMContentLoaded', function() {
+    // 自動リサイズ対象のテキストエリアを初期化
+    const autoResizeTextareas = document.querySelectorAll('textarea.auto-resize');
+    autoResizeTextareas.forEach(function(textarea) {
+        // 初期状態で自動リサイズを実行
+        autoResize(textarea);
+        
+        // キーボード入力以外でのサイズ調整（ペーストなど）
+        textarea.addEventListener('paste', function() {
+            setTimeout(function() {
+                autoResize(textarea);
+            }, 0);
+        });
+    });
+});

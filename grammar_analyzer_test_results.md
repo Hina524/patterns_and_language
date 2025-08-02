@@ -1,0 +1,24 @@
+# English Grammar Analyzer Test Results
+
+| # | Input | Output | ✔︎ | Comment |
+|---|-------|--------|---|---------|
+| 1 | The cat sleeps on the mat. | The cat slept on the mat.<br>sentence type: ・simple<br>prepositional phrases: ・on the mat | ✅ | All functions work correctly |
+| 2 | She writes beautiful poems in her notebook. | She wrote beautiful poems in her notebook.<br>sentence type: ・simple<br>prepositional phrases: ・in her | ❌ | Prepositional phrase incomplete: "in her" instead of "in her notebook" |
+| 3 | Students study hard before the exam. | Students studied hard before the exam.<br>sentence type: ・complex<br>prepositional phrases: ・(none) | ❌ | "before the exam" is a prepositional phrase, not detected |
+| 4 | I like coffee, but she prefers tea. | I liked coffee, but she preferred tea.<br>sentence type: ・compound<br>prepositional phrases: ・(none) | ✅ | All functions work correctly |
+| 5 | He studies math, and she learns science. | He studied math, and she learned science.<br>sentence type: ・compound<br>prepositional phrases: ・(none) | ✅ | All functions work correctly |
+| 6 | The sun shines brightly, yet the air feels cool. | The sun shone brightly, yet the air felt cool.<br>sentence type: ・compound<br>prepositional phrases: ・(none) | ✅ | All functions work correctly |
+| 7 | We can go to the park, or we can stay home. | We could go to the park, or we could stay home.<br>sentence type: ・compound<br>prepositional phrases: ・(none) | ❌ | "to the park" is a prepositional phrase, not detected |
+| 8 | Although it rains heavily, we continue our journey. | Although it rained heavily, we continued our journey.<br>sentence type: ・complex<br>prepositional phrases: ・(none) | ✅ | All functions work correctly |
+| 9 | She smiles whenever she sees her friends. | She smiled whenever she saw her friends.<br>sentence type: ・complex<br>prepositional phrases: ・(none) | ✅ | All functions work correctly |
+| 10 | If you study hard, you will pass the test. | If you studied hard, you passed the test.<br>sentence type: ・complex<br>prepositional phrases: ・(none) | ✅ | All functions work correctly |
+| 11 | The dog barks because it hears strange noises outside. | The dog barked because it heard strange noises outside.<br>sentence type: ・complex<br>prepositional phrases: ・(none) | ✅ | All functions work correctly |
+| 12 | I go to school, eat lunch, and come back home. | I went to school, ate lunch, and came back home.<br>sentence type: ・compound<br>prepositional phrases: ・(none) | ❌ | "to school" is a prepositional phrase, not detected |
+| 13 | She takes photos, makes videos, and writes captions. | She took photos, made videos, and wrote captions.<br>sentence type: ・compound<br>prepositional phrases: ・(none) | ✅ | All functions work correctly |
+| 14 | They swim in the pool, run in the park, and fly kites. | They swam in the pool, run in the park, and fly kites.<br>sentence type: ・simple<br>prepositional phrases: ・in the pool<br>・in the park | ❌ | Only first verb converted to past tense |
+| 15 | The book on the table in the library belongs to the student from Japan. | The book on the table in the library belonged to the student from Japan.<br>sentence type: ・simple<br>prepositional phrases: ・on the table<br>・in the library<br>・from Japan | ❌ | "to the student" prepositional phrase missing |
+| 16 | During the summer, children play in the garden behind the house near the river. | During the summer, children played in the garden behind the house near the river.<br>sentence type: ・simple<br>prepositional phrases: ・During the summer,<br>・in the garden | ❌ | Missing 'behind the house' and 'near the river' |
+| 17 | At midnight, the owl sits on the branch under the moon. | At midnight, the owl sat on the branch under the moon.<br>sentence type: ・simple<br>prepositional phrases: ・At midnight,<br>・on the branch | ❌ | Missing 'under the moon' |
+| 18 | When the sun rises, birds sing because they feel happy, although some people still sleep. | When the sun rises, birds sang because they felt happy, although some people still sleep.<br>sentence type: ・complex<br>prepositional phrases: ・When the sun | ❌ | Incomplete prepositional phrase; inconsistent past tense (rises, sleep not converted) |
+| 19 | Since he arrived early, he waits patiently while she finishes her work, even though he feels tired. | Since he arrived early, he waits patiently while she finishes her work, even though he feels tired.<br>sentence type: ・complex<br>prepositional phrases: ・Since he | ❌ | Only "arrived" converted to past; incomplete prepositional phrase |
+| 20 | That man thinks that the solution works, so he implements it even if others doubt that it succeeds. | That man thought that the solution works, so he implemented it even if others doubt that it succeeded.<br>sentence type: ・complex<br>prepositional phrases: ・(none) | ❌ | Inconsistent tense conversion |

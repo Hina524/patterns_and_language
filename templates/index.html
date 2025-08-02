@@ -46,8 +46,8 @@
                                 identified.<br>・Prepositional phrases will be identified.</p>
                             <label for="textInput" class="w3-text-white">Input:</label>
                             <br>
-                            <input type="text" id="textInput" class="w3-input w3-border w3-margin-bottom" placeholder="Enter your text here"
-                                aria-label="Text input">
+                            <textarea id="textInput" class="w3-input w3-border w3-margin-bottom auto-resize" placeholder="Enter your text here"
+                                aria-label="Text input" rows="3" oninput="autoResize(this)"></textarea>
                             <button class="w3-button-orange w3-margin-top w3-margin-right" onclick="convertToPast()">Process</button>
                             <div id="loading" class="loading-spinner w3-margin-left"></div>
                             

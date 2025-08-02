@@ -162,6 +162,17 @@ textarea.w3-input {
     line-height: 1.4;
 }
 
+/* 自動リサイズテキストエリアのスタイル */
+textarea.w3-input.auto-resize {
+    resize: none;
+    min-height: 72px; /* 3行分 */
+    max-height: 240px; /* 10行分 */
+    line-height: 24px;
+    overflow-y: hidden;
+    transition: height 0.1s ease;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 /* セレクトボックスのスタイル */
 .w3-select {
     background-color: #333;
@@ -372,9 +383,11 @@ textarea.w3-input {
     font-family: monospace;
     font-size: 0.8em;
     line-height: 1.3;
-    word-break: break-word;
-    max-height: 100px;
+    max-height: 300px;
     overflow-y: auto;
+    word-wrap: break-word;
+    word-break: break-word;
+    white-space: pre-wrap;
 }
 
 .remove-file-btn {
@@ -417,6 +430,30 @@ textarea.w3-input {
         padding: 8px 12px;
         width: 100%;
         max-width: 200px;
+    }
+    
+    /* Template Sentence Generatorのボタン中央寄せ */
+    #templateTab .w3-row-padding {
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    #templateTab .w3-col {
+        display: block;
+        float: none;
+        width: auto;
+        max-width: 280px;
+    }
+    
+    #templateTab .w3-button-orange {
+        margin: 0 auto;
+        display: block;
+        width: auto;
+        min-width: 200px;
+        max-width: 280px;
     }
     
     .w3-input, .w3-select {
@@ -561,7 +598,8 @@ textarea.w3-input {
     
     .file-preview {
         font-size: 0.75em;
-        max-height: 80px;
+        max-height: 250px;
+        overflow-y: auto;
     }
 }
 
@@ -618,6 +656,19 @@ textarea.w3-input {
         max-height: 200px;
         font-size: 11px;
         padding: 6px;
+    }
+    
+    /* Pattern Finder のresult-contentはモバイルでも自動サイズ調整 */
+    #patternOutputSection .result-content,
+    #patternOutput {
+        max-height: 70vh !important; /* モバイルでは画面の70%まで */
+        height: auto !important;
+        min-height: 80px !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        font-size: 12px;
+        padding: 12px;
+        word-break: break-word;
     }
 }
 
@@ -694,6 +745,19 @@ textarea.w3-input {
     color: #fff !important;
 }
 
+/* Pattern Finder のresult-contentは自動サイズ調整 */
+#patternOutputSection .result-content {
+    max-height: 80vh; /* 画面の80%まで表示、それ以上はスクロール */
+    height: auto;
+    min-height: 100px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px;
+    border: 2px solid orange;
+    background: linear-gradient(135deg, rgba(255, 165, 0, 0.05) 0%, rgba(255, 165, 0, 0.02) 100%) !important;
+    word-break: break-word;
+}
+
 @keyframes resultFadeIn {
     from {
         opacity: 0;
@@ -715,6 +779,19 @@ textarea.w3-input {
     line-height: 1.4;
     max-height: 400px;
     overflow-y: auto;
+}
+
+/* Pattern Finder専用の出力エリア - コンテンツに応じて自動サイズ調整 */
+#patternOutput {
+    max-height: 80vh; /* 画面の80%まで表示、それ以上はスクロール */
+    height: auto;
+    min-height: 100px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px;
+    border: 2px solid orange;
+    background: linear-gradient(135deg, rgba(255, 165, 0, 0.05) 0%, rgba(255, 165, 0, 0.02) 100%);
+    word-break: break-word;
 }
 
 /* カード要素の改善 */
