@@ -277,7 +277,6 @@ async function findPatterns() {
     let loading = document.getElementById('patternLoading');
 
     let texts = [];
-    let fileContents = '';
 
     if (currentInputMethod === 'text') {
         // 全てのテキストエリアから値を取得
@@ -294,14 +293,6 @@ async function findPatterns() {
         }
         
         texts = uploadedFiles.map(file => file.content).filter(content => content.length > 0);
-        
-        // ファイル内容を表示用に準備
-        fileContents = '\n=== Uploaded File Contents ===\n\n';
-        uploadedFiles.forEach((file, index) => {
-            fileContents += `📄 File ${index + 1}: ${file.name}\n`;
-            fileContents += `Content:\n${file.content}\n`;
-            fileContents += `${'-'.repeat(50)}\n\n`;
-        });
     }
 
     if (texts.length === 0) {
@@ -342,7 +333,7 @@ async function findPatterns() {
             output.innerText = "Error: " + result.error;
         } else {
             // 成功した場合の結果表示
-            displayApiPatternResults(result, fileContents, output);
+            displayApiPatternResults(result, output);
         }
         
     } catch (error) {
@@ -355,15 +346,12 @@ async function findPatterns() {
 }
 
 // API結果表示関数
-function displayApiPatternResults(result, fileContents, output) {
+function displayApiPatternResults(result, output) {
     let displayText = `Analysis completed using ${currentInputMethod === 'file' ? 'uploaded files' : 'manual input'}\n`;
     displayText += `Analyzed ${result.num_texts} text(s) | Level ${result.level} analysis\n\n`;
     
     if (result.patterns.length === 0) {
         displayText += "No common patterns found.";
-        if (fileContents) {
-            displayText += fileContents;
-        }
         output.innerText = displayText;
         return;
     }
@@ -381,11 +369,6 @@ function displayApiPatternResults(result, fileContents, output) {
     
     if (result.total_patterns > result.patterns.length) {
         displayText += `... and ${result.total_patterns - result.patterns.length} more patterns\n`;
-    }
-    
-    // ファイルの内容を表示（ファイルアップロードの場合）
-    if (fileContents) {
-        displayText += fileContents;
     }
     
     output.innerText = displayText;
