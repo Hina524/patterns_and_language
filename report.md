@@ -519,3 +519,12 @@ Fig. 16: [Pattern Finder機能で分析対象のテキストを確認する画�
 また、文章が長すぎたり、スマホで見る場合は、Fig. 17のように一定の行数を超えるとスクロールができ流ようになり、必要以上に表示行数を増やさない工夫をしています。
 ![[スクリーンショット 2025-08-02 23.53.19.png|400]]
 Fig. 17: [Pattern Finder機能で分析対象のテキストを確認する画面2]
+
+# Software evaluation
+
+## Usability study
+### Describe advice received in green task
+7月15日(火)
+
+
+### Accuracy evaluation

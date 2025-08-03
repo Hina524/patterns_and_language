@@ -2,7 +2,7 @@
 
 **Test Date**: 2024-01-XX  
 **Implementation**: Python + spaCy Backend  
-**Overall Success Rate**: 20/20 (100%) ✅
+**Overall Success Rate**: 28/28 (100%) ✅
 
 | # | Input | Output | ✔︎ | Comment |
 |---|-------|--------|---|---------|
@@ -26,6 +26,14 @@
 | 18 | When the sun rises, birds sing because they feel happy, although some people still sleep. | When the sun rose, birds sang because they felt happy, although some people still slept.<br>sentence type: ・complex<br>prepositional phrases: ・(none) | ✅ | All functions work correctly |
 | 19 | Since he arrived early, he waits patiently while she finishes her work, even though he feels tired. | Since he arrived early, he waited patiently while she finished her work, even though he felt tired.<br>sentence type: ・complex<br>prepositional phrases: ・(none) | ✅ | All functions work correctly |
 | 20 | That man thinks that the solution works, so he implements it even if others doubt that it succeeds. | That man thought that the solution worked, so he implemented it even if others doubted that it succeeded.<br>sentence type: ・complex<br>prepositional phrases: ・(none) | ✅ | All functions work correctly |
+| 21 | This is a banana and that is an orange. | This was a banana and that was an orange.<br>sentence type: ・compound<br>prepositional phrases: ・(none) | ✅ | Fixed: be-verb conversion in AUX context |
+| 22 | They are students in the classroom. | They were students in the classroom.<br>sentence type: ・simple<br>prepositional phrases: ・in the classroom | ✅ | Fixed: "are" → "were" (specific form priority) |
+| 23 | I am a teacher at this school. | I was a teacher at this school.<br>sentence type: ・simple<br>prepositional phrases: ・at this school | ✅ | Fixed: "am" → "was" (be-verb conversion) |
+| 24 | She has a book and he has a pen. | She had a book and he had a pen.<br>sentence type: ・compound<br>prepositional phrases: ・(none) | ✅ | Fixed: "has" → "had" (have-verb conversion) |
+| 25 | We are walking in the park. | We were walking in the park.<br>sentence type: ・simple<br>prepositional phrases: ・in the park | ✅ | Fixed: Present progressive (-ing form preservation) |
+| 26 | She is running to school. | She was running to school.<br>sentence type: ・simple<br>prepositional phrases: ・to school | ✅ | Fixed: Present progressive (-ing form preservation) |
+| 27 | They are playing soccer. | They were playing soccer.<br>sentence type: ・simple<br>prepositional phrases: ・(none) | ✅ | Fixed: Present progressive (-ing form preservation) |
+| 28 | I am studying English. | I was studying English.<br>sentence type: ・simple<br>prepositional phrases: ・(none) | ✅ | Fixed: Present progressive (-ing form preservation) |
 
 ## 📊 **Improvement Summary**
 
@@ -34,7 +42,7 @@
 - **Major Issues**: Incomplete prepositional phrases, inconsistent verb conversion, modal auxiliary errors
 
 ### **After (Python + spaCy)**
-- **Success Rate**: 20/20 (100%) ✅
+- **Success Rate**: 28/28 (100%) ✅
 - **Key Improvements**: 
   - Complete prepositional phrase detection
   - Accurate multiple verb coordination
@@ -47,10 +55,15 @@
 - **#10**: Corrected modal auxiliary "will" → "would"
 - **#14**: Multiple verb coordination in compound sentences
 - **#16**: Regular verb "play" → "played" (vowel+y rule)
+- **#21**: be-verb conversion "is" → "was" in AUX context
+- **#22**: Specific form priority "are" → "were" (not "was")
+- **#23**: be-verb conversion "am" → "was" 
+- **#24**: have-verb conversion "has" → "had"
+- **#25-28**: Present progressive tense (-ing form preservation)
 
 ## 🎯 **Technical Achievements**
 
-1. **100% Accuracy**: All test cases now pass
+1. **100% Accuracy**: All 28 test cases now pass
 2. **Robust NLP**: spaCy-based dependency parsing
 3. **Complete Grammar Coverage**: Simple, compound, and complex sentences
 4. **Advanced Verb Processing**: Irregular verbs, modal auxiliaries, coordination

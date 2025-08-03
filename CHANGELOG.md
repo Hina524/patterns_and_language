@@ -531,4 +531,103 @@ elif len(verb) >= 3 and verb[-1] not in 'aeiou'...  # CVC pattern
 - **完全な精度達成**: すべての文法構造で正確な処理
 - **包括的な動詞サポート**: 規則動詞、不規則動詞、助動詞の完全対応
 
+## [2.0.5] - 2024-01-XX - be動詞変換の完全修正
+
+### 🐛 Bug Fix - Complete be-verb Conversion Fix
+
+#### **AUX（助動詞）としてのbe動詞の変換問題**
+
+**問題**: be動詞（is, are, am）がAUXタグ付けされ、過去形変換されない
+- **発見されたケース**: "This is a banana and that is an orange."
+- **問題の出力**: "This **is** a banana and that **is** an orange." ❌
+- **期待される出力**: "This **was** a banana and that **was** an orange." ✅
+
+#### **根本原因**
+
+1. **AUX処理の不備**: `_should_convert_to_past`で be動詞（AUX+be lemma）が変換対象外
+2. **辞書検索順序**: `_get_past_form`で lemma優先により "are"→"was"（正解: "were"）
+
+#### **実装された修正**
+
+**修正1: AUX be動詞の変換有効化**
+```python
+# 助動詞の処理
+if token.pos_ == 'AUX':
+    if token.tag_ == 'MD':  # Modal auxiliary
+        return True
+    # be動詞（is, are, am等）も変換対象
+    if token.lemma_ == 'be':
+        return True
+    # have動詞（has, have等）も変換対象  
+    if token.lemma_ == 'have':
+        return True
+```
+
+**修正2: 不規則動詞検索順序の最適化**
+```python
+# 不規則動詞のチェック（具体的な形を優先）
+if text in self.irregular_verbs:        # "are" → "were"
+    past_form = self.irregular_verbs[text]
+elif lemma in self.irregular_verbs:     # "be" → "was"  
+    past_form = self.irregular_verbs[lemma]
+```
+
+#### **修正結果**
+
+- **"is" → "was"**: ✅ 正確
+- **"are" → "were"**: ✅ 正確（以前は"was"）
+- **"am" → "was"**: ✅ 正確
+- **"have/has" → "had"**: ✅ 正確
+
+## [2.0.6] - 2024-01-XX - 現在進行形の完全修正
+
+### 🐛 Bug Fix - Present Progressive Tense Fix
+
+#### **現在進行形における-ing形の誤変換問題**
+
+**問題**: 現在進行形で-ing形動詞が過去形に変換される
+- **発見されたケース**: "We are walking in the park."
+- **問題の出力**: "We were **walked** in the park." ❌
+- **期待される出力**: "We were **walking** in the park." ✅
+
+#### **根本原因**
+
+**VBG（-ing形）の無条件変換**: `_should_convert_to_past`でVBGタグが変換対象になっていた
+
+現在進行形の構造理解不足：
+- **be動詞**: 過去形に変換（are → were）
+- **-ing形**: 維持（walking → walking）
+
+#### **実装された修正**
+
+**修正1: 現在進行形判定関数の追加**
+```python
+def _is_progressive_tense(self, token, doc) -> bool:
+    """VBGトークンが現在進行形（be動詞 + -ing形）の文脈にあるかを判定"""
+    if token.tag_ != 'VBG':
+        return False
+    
+    # 現在進行形では、be動詞がauxとしてVBGに依存
+    for child in token.children:
+        if child.pos_ == 'AUX' and child.dep_ == 'aux' and child.lemma_ == 'be':
+            return True
+    return False
+```
+
+**修正2: VBG変換ロジックの条件分岐**
+```python
+# VBG（-ing形）の特別処理：現在進行形では変換しない
+if token.tag_ == 'VBG':
+    if self._is_progressive_tense(token, doc):
+        return False  # 現在進行形では変換しない
+    return True
+```
+
+#### **修正結果**
+
+- **"We are walking"** → "We were walking" ✅
+- **"She is running"** → "She was running" ✅  
+- **"They are playing"** → "They were playing" ✅
+- **"I am studying"** → "I was studying" ✅
+
 ---

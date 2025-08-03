@@ -96,6 +96,12 @@ class EnglishGrammarAnalyzer:
             # 助動詞（can, will, may等）は過去形に変換
             if token.tag_ == 'MD':  # Modal auxiliary
                 return True
+            # be動詞（is, are, am等）も変換対象
+            if token.lemma_ == 'be':
+                return True
+            # have動詞（has, have等）も変換対象
+            if token.lemma_ == 'have':
+                return True
             return False
         
         # 助動詞に続く動詞は原形のままにする
@@ -112,9 +118,31 @@ class EnglishGrammarAnalyzer:
             if not self._is_passive_or_perfect(token, doc):
                 return True
         
-        # その他の動詞形式（VB, VBP, VBG, VBZ）は変換対象
-        if token.tag_ in ['VB', 'VBP', 'VBG', 'VBZ']:
+        # VBG（-ing形）の特別処理：現在進行形では変換しない
+        if token.tag_ == 'VBG':
+            # 現在進行形（be動詞 + -ing形）の文脈では変換しない
+            if self._is_progressive_tense(token, doc):
+                return False
             return True
+        
+        # その他の動詞形式（VB, VBP, VBZ）は変換対象
+        if token.tag_ in ['VB', 'VBP', 'VBZ']:
+            return True
+        
+        return False
+
+    def _is_progressive_tense(self, token, doc) -> bool:
+        """
+        VBGトークンが現在進行形（be動詞 + -ing形）の文脈にあるかを判定
+        """
+        if token.tag_ != 'VBG':
+            return False
+        
+        # VBGトークンの依存関係をチェック
+        # 現在進行形では、be動詞がauxとしてVBGに依存
+        for child in token.children:
+            if child.pos_ == 'AUX' and child.dep_ == 'aux' and child.lemma_ == 'be':
+                return True
         
         return False
 
@@ -172,11 +200,11 @@ class EnglishGrammarAnalyzer:
         lemma = token.lemma_.lower()
         text = token.text.lower()
         
-        # 不規則動詞のチェック
-        if lemma in self.irregular_verbs:
-            past_form = self.irregular_verbs[lemma]
-        elif text in self.irregular_verbs:
+        # 不規則動詞のチェック（具体的な形を優先）
+        if text in self.irregular_verbs:
             past_form = self.irregular_verbs[text]
+        elif lemma in self.irregular_verbs:
+            past_form = self.irregular_verbs[lemma]
         else:
             # 規則動詞の過去形生成
             past_form = self._make_regular_past(lemma)
