@@ -67,9 +67,35 @@ def convert_to_past_tense(self, text: str) -> str:
 - **英語動詞活用体系**: 規則動詞（-ed付加）・不規則動詞（語幹変化）・助動詞の包括的処理
 - **時制一致原理**: 文全体における時制の統一性維持
 - **高精度形態論解析**: 語幹抽出→活用語尾処理→不規則動詞辞書照合
-- **不規則動詞辞書**: 例) 80+ irregular verbs（shine→shone, swim→swam等）
-- **協調動詞処理**: 例) "swim, run, and fly" → "swam, ran, and flew"
-- **助動詞変換**: 例) "can" → "could", "will" → "would"
+
+**実装の特徴:**
+1. **不規則動詞辞書（80語以上）**:
+   - 基本動詞: go→went, come→came, see→saw, make→made
+   - be動詞: is→was, are→were, am→was
+   - 特殊動詞: shine→shone, swim→swam, fly→flew
+   - 助動詞: can→could, will→would, may→might
+
+2. **協調動詞処理**:
+   - 等位接続詞で結ばれた動詞の一括変換
+   - 例: "They swim, run, and fly" → "They swam, ran, and flew"
+   - spaCyのタグ付けエラー（VBN誤認識）への対応
+
+3. **助動詞構造の処理**:
+   - Modal auxiliary (MD)の変換: can→could, will→would
+   - 助動詞後の動詞は原形維持: "can go" → "could go"
+   - be/have動詞の適切な変換: has→had, are→were
+
+4. **進行形の保持**:
+   - be動詞のみ変換、-ing形は維持
+   - 例: "We are walking" → "We were walking"
+   - 依存関係解析による進行形構造の正確な識別
+
+5. **規則動詞の精密な活用ルール**:
+   - -e終わり: like→liked
+   - 子音+y: study→studied  
+   - 母音+y: play→played（playyed誤りを防止）
+   - CVC pattern: stop→stopped
+   - その他: work→worked
 
 #### 2. 文構造分析
 **理論的基盤: Dependency Grammar + Syntactic Parsing**
@@ -124,12 +150,36 @@ flowchart TD
     
     D --> D1[動詞・助動詞識別]
     D1 --> D2[変換判定ロジック]
-    D2 --> D3{協調構造?}
-    D3 -->|Yes| D4[協調動詞変換]
-    D3 -->|No| D5[単一動詞変換]
-    D4 --> D6[不規則動詞辞書]
-    D5 --> D6
-    D6 --> D7[規則動詞ルール]
+    D2 --> D3{助動詞判定}
+    D3 -->|Modal MD| D3A[can→could等変換]
+    D3 -->|be/have| D3B[is→was等変換]
+    D3 -->|No| D4{進行形判定}
+    D4 -->|Yes| D4A[be動詞のみ変換<br/>-ing形維持]
+    D4 -->|No| D5{協調構造?}
+    D5 -->|Yes| D6[協調動詞変換]
+    D5 -->|No| D7[単一動詞変換]
+    
+    D3A --> G[Flask API Response]
+    D3B --> G
+    D4A --> G
+    
+    D6 --> D8{不規則動詞?}
+    D7 --> D8
+    D8 -->|Yes| D9[80+動詞辞書検索<br/>swim→swam等]
+    D8 -->|No| D10[規則動詞ルール]
+    D10 --> D10A{語尾判定}
+    D10A -->|e| D10B[+d: like→liked]
+    D10A -->|子音+y| D10C[y→ied: study→studied]
+    D10A -->|母音+y| D10D[+ed: play→played]
+    D10A -->|CVC| D10E[重複+ed: stop→stopped]
+    D10A -->|他| D10F[+ed: work→worked]
+    
+    D9 --> G
+    D10B --> G
+    D10C --> G
+    D10D --> G
+    D10E --> G
+    D10F --> G
     
     E --> E1[従属接続詞検索]
     E1 --> E2{依存関係ラベル確認}
@@ -144,7 +194,6 @@ flowchart TD
     F2 --> F3[名詞句拡張]
     F3 --> F4[句境界確定]
     
-    D7 --> G[Flask API Response]
     E3 --> G
     E6 --> G
     E7 --> G
@@ -264,14 +313,55 @@ phrase_type = self.get_phrase_type(token, doc, phrase_map)
 #### **句構造検出アルゴリズム**
 ```python
 def _build_phrase_map(self, doc):
+    # Step 0: カスタム修正による精度向上
+    self._apply_custom_corrections(doc, phrase_map)
+    
     # Step 1: spaCy noun_chunksによる名詞句検出
     for chunk in doc.noun_chunks:
         for i in range(chunk.start, chunk.end):
             phrase_map[i] = 'NP'
     
-    # Step 2: 依存関係解析による動詞句検出
+    # Step 2: 不定詞句検出（動詞句より先に処理）
+    for token in doc:
+        if self._is_infinitive_marker(token, doc):
+            inf_tokens = self._get_infinitive_phrase_tokens(token, doc)
+            for tok_idx in inf_tokens:
+                phrase_map[tok_idx] = 'INF-P'
+    
+    # Step 3: 依存関係解析による動詞句検出
     if token.pos_ in ['VERB', 'AUX'] and token.i not in phrase_map:
         vp_tokens = self._get_verb_phrase_tokens(token, doc)
+```
+
+**カスタム修正機能:**
+```python
+def _apply_custom_corrections(self, doc, phrase_map):
+    """spaCyのタグ付け精度問題への対処"""
+    for token in doc:
+        # 動名詞主語の修正（Swimming[PROPN] → Swimming[VP]）
+        if (token.pos_ == 'PROPN' and 
+            token.tag_ == 'NNP' and 
+            token.dep_ == 'nsubj' and 
+            token.text.lower().endswith('ing')):
+            phrase_map[token.i] = 'VP'
+        
+        # 時間表現の統一（today, now等をADVPに）
+        if self._is_time_expression(token, doc):
+            phrase_map[token.i] = 'ADVP'
+```
+
+**不定詞句検出:**
+```python
+def _is_infinitive_marker(self, token, doc):
+    """to + 動詞構造の識別"""
+    if (token.pos_ == 'PART' and 
+        token.tag_ == 'TO' and 
+        token.text.lower() == 'to'):
+        # 後続動詞チェック
+        if token.i + 1 < len(doc):
+            next_token = doc[token.i + 1]
+            if next_token.pos_ == 'VERB' and next_token.tag_ == 'VB':
+                return True
 ```
 
 **動詞句境界検出:**
@@ -334,26 +424,41 @@ flowchart TD
     C -->|Level 4| D4[Combined Analysis]
     
     D3 --> E[句構造マップ構築]
-    E --> E1[Step 1: 名詞句検出]
-    E1 --> E2[Step 2: 動詞句検出]
-    E2 --> E3[Step 3: 前置詞句検出]
-    E3 --> E4[Step 4: 形容詞句検出]
-    E4 --> E5[Step 5: 副詞句検出]
-    E5 --> E6[Step 6: 残余トークン分類]
+    E --> E0[Step 0: カスタム修正]
+    E0 --> E0A[動名詞主語修正<br/>Swimming[PROPN]→[VP]]
+    E0 --> E0B[時間表現統一<br/>today/now→[ADVP]]
+    E0A --> E1[Step 1: 名詞句検出]
+    E0B --> E1
+    E1 --> E2[Step 2: 不定詞句検出]
+    E2 --> E3[Step 3: 動詞句検出]
+    E3 --> E4[Step 4: 前置詞句検出]
+    E4 --> E5[Step 5: 形容詞句検出]
+    E5 --> E6[Step 6: 副詞句検出]
+    E6 --> E7[Step 7: 残余トークン分類]
+    
+    subgraph "不定詞句検出詳細"
+        INF1[to[PART]検出]
+        INF2[後続動詞確認]
+        INF3[to + VB構造]
+        INF4[INF-Pタグ付与]
+        INF1 --> INF2 --> INF3 --> INF4
+    end
+    
+    E2 -.-> INF1
     
     subgraph "動詞句検出詳細"
         F1[動詞トークン特定]
         F2[依存関係解析]
         F3[aux/neg/prt検出]
-        F4[不定詞to処理]
+        F4[VP境界確定]
         F1 --> F2 --> F3 --> F4
     end
     
-    E2 -.-> F1
+    E3 -.-> F1
     
     D1 --> G[トークン配列生成]
     D2 --> G
-    E6 --> G
+    E7 --> G
     D4 --> G
     
     G --> H[パターンマッチング]
@@ -382,10 +487,10 @@ Fig. 3: [Pattern Finder機能のAlgorithm Diagram]
 # 3. Software development
 ## 使用技術スタック
 ### プログラミング言語・フレームワーク
-- **Python 3.11**
-- **JavaScript ES6+**
-- **HTML5**
-- **CSS3**
+- **Python 3.11**: バックエンド処理、NLP解析エンジン
+- **JavaScript ES6+**: フロントエンド動的処理、非同期API通信
+- **HTML5**: セマンティックな構造化マークアップ
+- **CSS3**: モダンなスタイリング、レスポンシブデザイン
 ### 主要ライブラリ
 - **Flask 3.0.0**: 軽量Webフレームワーク
 - **spaCy 3.8.5**: 産業標準NLPライブラリ（English Grammar Analyzer & Pattern Finder backend）

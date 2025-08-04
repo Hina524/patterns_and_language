@@ -17,6 +17,17 @@ class PatternFinder:
             except:
                 print("Please install spacy and en_core_web_sm: python -m spacy download en_core_web_sm")
                 sys.exit(1)
+        
+        # Linking verbs for special pattern detection
+        self.linking_verbs = {
+            'be', 'is', 'am', 'are', 'was', 'were', 'been', 'being',
+            'seem', 'seems', 'seemed', 'appear', 'appears', 'appeared',
+            'look', 'looks', 'looked', 'feel', 'feels', 'felt',
+            'sound', 'sounds', 'sounded', 'taste', 'tastes', 'tasted',
+            'smell', 'smells', 'smelled', 'become', 'becomes', 'became',
+            'remain', 'remains', 'remained', 'stay', 'stays', 'stayed',
+            'grow', 'grows', 'grew', 'turn', 'turns', 'turned'
+        }
     
     def get_files_from_folder(self, folder):
         """Get all text files from a folder"""
@@ -39,6 +50,55 @@ class PatternFinder:
             except Exception as e:
                 print(f"Error reading {file_path}: {e}")
         return texts
+    
+    def _is_gerund_subject(self, token, doc):
+        """Check if a token is a gerund acting as subject"""
+        # Check multiple conditions for gerund detection
+        if token.text.endswith('ing'):
+            # Case 1: Token is marked as subject dependency
+            if token.dep_ in ['nsubj', 'csubj']:
+                return True
+            
+            # Case 2: Token is at sentence start and followed by adverb then verb
+            if token.i == 0 and len(doc) > 2:
+                # Check if next tokens form gerund phrase pattern
+                if (token.i + 1 < len(doc) and 
+                    doc[token.i + 1].pos_ == 'ADV' and
+                    token.i + 2 < len(doc) and
+                    doc[token.i + 2].pos_ == 'VERB'):
+                    return True
+            
+            # Case 3: SpaCy mistakenly tagged as PROPN but acts as subject
+            if (token.pos_ == 'PROPN' and 
+                token.dep_ == 'nsubj' and
+                token.i == 0):
+                return True
+        
+        return False
+    
+    def _correct_token_pos(self, token, doc):
+        """Correct common spaCy POS tagging errors"""
+        # Fix gerunds tagged as proper nouns
+        if (token.pos_ == 'PROPN' and 
+            token.text.endswith('ing') and
+            self._is_gerund_subject(token, doc)):
+            return 'VERB'
+        
+        return token.pos_
+    
+    def _is_linking_verb_with_adjective(self, verb_token, doc):
+        """Check if this is a linking verb followed by adjective complement"""
+        if verb_token.lemma_ in self.linking_verbs or verb_token.text.lower() in self.linking_verbs:
+            # Look for adjective complements
+            for child in verb_token.children:
+                # Check for various adjective complement dependencies
+                if (child.dep_ in ['acomp', 'oprd', 'attr'] and 
+                    child.pos_ == 'ADJ'):
+                    return True
+                # Sometimes the adjective is marked as 'xcomp'
+                if child.dep_ == 'xcomp' and child.pos_ == 'ADJ':
+                    return True
+        return False
     
     def tokenize(self, text):
         """Tokenize text based on level"""
@@ -95,16 +155,19 @@ class PatternFinder:
         return phrase_map.get(token.i, 'O')
     
     def _build_phrase_map(self, doc):
-        """Build a comprehensive map of phrase types for all tokens"""
+        """Build a comprehensive map of phrase types for all tokens with accuracy fixes"""
         phrase_map = {}
         
-        # Step 0: Apply custom corrections for known spaCy tagging issues
-        phrase_map = self._apply_custom_corrections(doc, phrase_map)
+        # Step 0: Handle gerund subjects FIRST (before noun chunks)
+        for token in doc:
+            if self._is_gerund_subject(token, doc):
+                # Mark gerund as VP
+                phrase_map[token.i] = 'VP'
         
-        # Step 1: Mark noun chunks
+        # Step 1: Mark noun chunks (but don't overwrite gerunds)
         for chunk in doc.noun_chunks:
             for i in range(chunk.start, chunk.end):
-                if i not in phrase_map:  # Don't overwrite custom corrections
+                if i not in phrase_map:  # Don't overwrite gerunds
                     phrase_map[i] = 'NP'
         
         # Step 2: Identify infinitive phrases (to + verb) - BEFORE verb phrases
@@ -115,13 +178,18 @@ class PatternFinder:
                     if i not in phrase_map:
                         phrase_map[i] = 'INF-P'
         
-        # Step 3: Identify verb phrases
+        # Step 3: Identify verb phrases (with linking verb handling)
         for token in doc:
             if token.pos_ in ['VERB', 'AUX'] and token.i not in phrase_map:
-                vp_tokens = self._get_verb_phrase_tokens(token, doc)
-                for i in vp_tokens:
-                    if i not in phrase_map:  # Don't overwrite noun chunks or infinitive phrases
-                        phrase_map[i] = 'VP'
+                # Check if it's a linking verb with adjective
+                if self._is_linking_verb_with_adjective(token, doc):
+                    # Only mark the verb itself as VP, let adjectives be handled separately
+                    phrase_map[token.i] = 'VP'
+                else:
+                    vp_tokens = self._get_verb_phrase_tokens(token, doc)
+                    for i in vp_tokens:
+                        if i not in phrase_map:
+                            phrase_map[i] = 'VP'
         
         # Step 4: Identify prepositional phrases
         for token in doc:
@@ -131,15 +199,24 @@ class PatternFinder:
                     if i not in phrase_map:  # Don't overwrite existing phrases
                         phrase_map[i] = 'PP'
         
-        # Step 5: Identify adjective phrases
+        # Step 5: Identify adjective phrases (with special handling for linking verb complements)
         for token in doc:
             if token.pos_ == 'ADJ' and token.i not in phrase_map:
-                adjp_tokens = self._get_adjective_phrase_tokens(token, doc)
-                for i in adjp_tokens:
-                    if i not in phrase_map:
-                        phrase_map[i] = 'ADJP'
+                # Check if this adjective is a complement to a linking verb
+                if token.dep_ in ['acomp', 'oprd'] and token.head.pos_ == 'VERB':
+                    # This is an adjective complement - mark it and its modifiers as ADJP
+                    adjp_tokens = self._get_adjective_phrase_tokens(token, doc)
+                    for i in adjp_tokens:
+                        if i not in phrase_map:
+                            phrase_map[i] = 'ADJP'
+                else:
+                    # Regular adjective phrase
+                    adjp_tokens = self._get_adjective_phrase_tokens(token, doc)
+                    for i in adjp_tokens:
+                        if i not in phrase_map:
+                            phrase_map[i] = 'ADJP'
         
-        # Step 6: Identify adverb phrases
+        # Step 6: Identify adverb phrases (with special handling for time/place adverbs)
         for token in doc:
             if token.pos_ == 'ADV' and token.i not in phrase_map:
                 advp_tokens = self._get_adverb_phrase_tokens(token, doc)
@@ -191,10 +268,18 @@ class PatternFinder:
         """Get all tokens that belong to an adjective phrase headed by this adjective"""
         adjp_tokens = {adj.i}
         
-        # Include adverbs modifying the adjective
+        # Include adverbs modifying the adjective (including intensifiers)
         for child in adj.children:
-            if child.dep_ == 'advmod':
+            if child.dep_ in ['advmod', 'npadvmod']:
                 adjp_tokens.add(child.i)
+                # Also include children of the adverb (for multi-word intensifiers)
+                for grandchild in child.children:
+                    if grandchild.dep_ == 'advmod':
+                        adjp_tokens.add(grandchild.i)
+        
+        # If this adjective modifies another adjective, include it in the same phrase
+        if adj.head.pos_ == 'ADJ' and adj.dep_ == 'amod':
+            adjp_tokens.add(adj.head.i)
         
         return adjp_tokens
     
@@ -206,6 +291,13 @@ class PatternFinder:
         for child in adv.children:
             if child.dep_ == 'advmod':
                 advp_tokens.add(child.i)
+        
+        # Special handling for time/place nouns acting as adverbs
+        if (adv.pos_ == 'NOUN' and 
+            adv.dep_ in ['npadvmod', 'tmod'] and
+            adv.text.lower() in ['today', 'tomorrow', 'yesterday', 'now', 'then', 'here', 'there']):
+            # These should be treated as ADVP
+            return advp_tokens
         
         return advp_tokens
     
@@ -264,6 +356,12 @@ class PatternFinder:
     def _classify_remaining_token(self, token, doc):
         """Classify tokens that don't belong to major phrase types"""
         
+        # Time/place nouns acting as adverbs
+        if (token.pos_ == 'NOUN' and 
+            token.dep_ in ['npadvmod', 'tmod'] and
+            token.text.lower() in ['today', 'tomorrow', 'yesterday', 'now', 'then']):
+            return 'ADVP'
+        
         # Determiners are often part of noun phrases, but if not already marked
         if token.pos_ == 'DET':
             return 'DP'  # Determiner Phrase
@@ -294,45 +392,6 @@ class PatternFinder:
         
         # Default for anything else
         return 'O'
-    
-    def _apply_custom_corrections(self, doc, phrase_map):
-        """Apply custom corrections for known spaCy tagging issues"""
-        for token in doc:
-            # Fix gerund subjects that are misclassified as proper nouns
-            if (token.pos_ == 'PROPN' and 
-                token.tag_ == 'NNP' and 
-                token.dep_ == 'nsubj' and 
-                token.text.lower().endswith('ing')):
-                # This is likely a gerund acting as subject, should be VP
-                phrase_map[token.i] = 'VP'
-                continue
-            
-            # Fix time expressions to be consistent as ADVP
-            if self._is_time_expression(token, doc):
-                phrase_map[token.i] = 'ADVP'
-                continue
-        
-        return phrase_map
-    
-    def _is_time_expression(self, token, doc):
-        """Check if token is a time expression that should be ADVP"""
-        # Common time expressions
-        time_words = {
-            'today', 'yesterday', 'tomorrow', 'now', 'then', 'soon', 
-            'later', 'early', 'late', 'recently', 'currently'
-        }
-        
-        # If it's a common time word
-        if token.text.lower() in time_words:
-            return True
-        
-        # If it's tagged as temporal modifier
-        if token.dep_ in ['npadvmod', 'advmod'] and token.pos_ in ['NOUN', 'ADV']:
-            # Check if it's likely temporal based on context
-            if any(word in token.text.lower() for word in ['day', 'time', 'night', 'morning']):
-                return True
-        
-        return False
     
     def find_common_patterns(self, token_sequences):
         """Find all common patterns across sequences"""
